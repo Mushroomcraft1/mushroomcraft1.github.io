@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="{lang}">
+
+<head>
+    %HEAD%
+    <title></title>
+    <style>
+        #board {
+            height: 70vh;
+            min-width: auto;
+            max-width: 100%;
+            aspect-ratio: 21 / 20;
+            background-color: #000000;
+            border-radius: var(--border-radius);
+        }
+    </style>
+</head>
+
+<body>
+    %HEADER%
+    %SIDEBAR%
+    <main id="content">
+        Quick Eval: <span id="qEval">?</span>, Full Eval: <span id="boardEval">?</span>, Depth: <span
+            id="depth">?</span><br>
+        <div id="lines"></div>
+        <span id="performance"></span><br>
+        <canvas id="board" oncontextmenu="return false"></canvas>
+        <h2 id="status"></h2>
+        <div class="button" onclick="display.flip=!display.flip">Flip board</div>
+        <div class="button" onclick="options.white.computer=!options.white.computer;this.innerText=`White computer: ${options.white.computer}`"id="wC">White computer:</div>
+        <div class="button" onclick="options.black.computer=!options.black.computer;this.innerText=`Black computer: ${options.black.computer}`"id="bC">Black computer:</div>
+    </main>
+    %FOOTER%
+    <script src="./chessEvenBetter.js" defer onload="document.getElementById('wC').innerText+=' '+options.white.computer;document.getElementById('bC').innerText+=' '+options.black.computer"></script>
+</body>
+
+</html>
