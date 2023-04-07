@@ -1446,7 +1446,7 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
         }
 
         styles.annotations = new Image()
-        styles.annotations.src = "/cdn/static/annotations.png"
+        styles.annotations.src = "/annotations.png"
         styles.annotations.onload = function () {
             // Setting the width and height of the pieces in the image
             styles.annotationSizeX = styles.annotations.width / 11
@@ -1458,7 +1458,7 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
             new Notif(e, "e", true)
         }
         styles.pieces = new Image()
-        styles.pieces.src = "/cdn/static/chess.png"
+        styles.pieces.src = "/chess.png"
         styles.pieces.onload = function () {
             // Setting the width and height of the pieces in the image
             styles.pieceSizeX = styles.pieces.width / 6
