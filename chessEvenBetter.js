@@ -208,7 +208,7 @@ for (let i = 0; i < 1536; i++) {
 
 const options = {
     black: {
-        computer: false,
+        computer: true,
         timeLimit: 3000,
         minDepth: 3,
         depthLimit: 5 // Only used if timeLimit is undefined
