@@ -8,7 +8,7 @@
             background-color: black;
         }
 
-        body {
+        div {
             backdrop-filter: blur(50vh);
             translate: 0 -0.57px;
             position: fixed;
@@ -23,30 +23,47 @@
         /* Styling for the text, not required to reproduce the bug. */
         main {
             padding: 10vw;
-            font-size: 2vw;
+            font-size: 25px;
             color: white;
             font-family: Arial;
+            z-index: 100;
+            position: absolute;
+            top: 0;
         }
 
-        h {
+        span {
             color: red;
         }
     </style>
 </head>
 
 <body>
-    <main>
-        The background of this page should not be a gradient.
+    <div>
+    </div>
+    <main>The background of this page should not be a gradient.
         <br>
         <br>
         What is happening is the body element has a backdrop-filter of blur(50vh) and is translated on the Y axis by
         -0.57px. If an element has a backdrop-filter of blur, and is not position exactly on a pixel, it may sample
-        pixels outside of the page and use them in the blur. <h>This bug does not occur when in full-screen and only affects chromium-based browsers</h>, but when not
-        in full screen, in my case it samples the bottom pixel of my bookmark bar creating a grey to black gradient.
+        pixels outside of the page and use them in the blur. <span>This bug does not occur when in full-screen and only
+            affects chromium-based browsers</span>, but when not in full screen, in my case it samples the bottom pixel
+        of
+        my bookmark bar creating a grey to black gradient.
         <br>
         <br>
         The colour of the background "gradient" changes depending on the colour of your chrome theme.
+        <br>
+        <br>
+        If the bug does not occur, try randomly changing this slider.
+        <br>
+        <input type="range" min="0" max="1" value="0.57" step="0.01" onchange="change()">
     </main>
+    <script>
+        const slider = document.getElementsByTagName("input")[0]
+        function change() {
+            document.body.children[0].style.translate = "0 -" + slider.value + "px"
+        }
+    </script>
 </body>
 
 </html>
