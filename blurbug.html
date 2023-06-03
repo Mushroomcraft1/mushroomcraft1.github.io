@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Chrome Blur Bug</title>
+    <style>
+        html {
+            background-color: black;
+        }
+
+        body {
+            backdrop-filter: blur(50vh);
+            translate: 0 -0.57px;
+            position: fixed;
+            padding: 0;
+            margin: 0;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Styling for the text, not required to reproduce the bug. */
+        main {
+            padding: 10vw;
+            font-size: 2vw;
+            color: white;
+            font-family: Arial;
+        }
+
+        h {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        The background of this page should not be a gradient.
+        <br>
+        <br>
+        What is happening is the body element has a backdrop-filter of blur(50vh) and is translated on the Y axis by
+        -0.57px. If an element has a backdrop-filter of blur, and is not position exactly on a pixel, it may sample
+        pixels outside of the page and use them in the blur. <h>This bug does not occur when in full-screen and only affects chromium-based browsers</h>, but when not
+        in full screen, in my case it samples the bottom pixel of my bookmark bar creating a grey to black gradient.
+    </main>
+</body>
+
+</html>
