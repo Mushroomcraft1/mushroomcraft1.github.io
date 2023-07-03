@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+
+<head>
+    <style>
+        body {
+            background-color: #444;
+            color: #fff;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 30px;
+            padding: 20px;
+        }
+
+        a {
+            position: absolute;
+            padding: 20px;
+            margin-top: 15px;
+            text-decoration: none;
+            color: #fff;
+            border: 3px solid #fff;
+            border-radius: 20px;
+        }
+
+        pre {
+            font-family: Consolas;
+            color: #f00;
+            background-color: #000;
+        }
+
+        #html {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    Drag the button below to your bookmark bar!<br>
+    <a id="button">Code</a><br><br><br>
+    <span id="size"></span>
+    <pre><code id="error"></code></pre>
+    <div id="html">
+        <div id="elm-console">
+            <div id="elm-tabs">
+                <span class="elm-link elm-link-active" onclick="funct_switch('elm-link-console')"
+                    id="elm-link-console">Console</span>
+                <span class="elm-sep"></span>
+                <span class="elm-link" onclick="funct_switch('elm-link-elements')"
+                    id="elm-link-elements">Elements</span>
+                <span class="elm-sep"></span>
+                <span class="elm-link" onclick="funct_switch('elm-link-selector')"
+                    id="elm-link-selector">Selector</span>
+            </div>
+            <div id="elm-log-container"></div>
+            <input id="elm-eval"></textarea>
+            <div id="elm-selector-info">
+                <pre><code></code></pre>
+            </div>
+        </div>
+        <div id="elm-selector"></div>
+        <div id="elm-context-menu"></div>
+    </div>
+    <style id="style">
+        :root {
+            --var_text_color: #ddd;
+            --var_text_highlight_color: #aaa;
+            --var_highlight_color: #ff08;
+            --var_highlight_outline_color: #0ff;
+            --var_background_highlight_color: #0006;
+            --var_background_hover_color: #aaa3;
+            --var_console_warn_color: #fc08;
+            --var_console_error_color: #f008;
+            --h-plain: #AAAAAA;
+            --var_highlight_default: #9CDCFE;
+            --var_highlight_keyword: #569CD6;
+            --var_highlight_block: #C586C0;
+            --var_highlight_comment: #6A9955;
+            --var_highlight_number: #B5CEA4;
+            --var_highlight_string: #CE9178;
+            --var_highlight_function: #DCDCAA;
+            --var_highlight_class: #4EC9B0;
+            --var_highlight_dull: #666666;
+        }
+
+        #elm-selector {
+            position: fixed;
+            display: none;
+            background-color: var(--var_highlight_color);
+            outline: 2px solid var(--var_highlight_outline_color);
+            top: 0;
+            left: 0;
+            width: 50vw;
+            height: 50vh;
+            user-select: none;
+            pointer-events: none;
+            z-index: 99998;
+        }
+
+        #elm-tabs {
+            display: flex;
+            justify-content: space-between;
+
+        }
+
+        .elm-link {
+            flex: 1;
+            text-align: center;
+            padding-top: 15px;
+            padding-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .elm-link:hover:not(.elm-link-active) {
+            background-color: var(--var_background_hover_color);
+        }
+
+        .elm-link-active {
+            background-color: var(--var_background_highlight_color);
+        }
+
+        .elm-sep {
+            background-color: var(--var_text_color);
+            height: 2em;
+            align-self: center;
+            width: 2px;
+        }
+
+        #elm-console {
+            color: var(--var_text_color) !important;
+            color-scheme: dark;
+            background-color: var(--var_background_highlight_color);
+            width: 700px;
+            height: 500px;
+            padding: 30px;
+            position: fixed;
+            z-index: 999999;
+            right: 0;
+            bottom: 0;
+            font-size: 18px !important;
+        }
+
+        #elm-log-container {
+            width: 100%;
+            margin-top: 1em;
+            height: calc(100% - 4em - 4px);
+            overflow-y: scroll;
+        }
+
+        #elm-eval {
+            max-width: calc(100% - 25px);
+            min-width: calc(100% - 25px);
+            max-height: 1em;
+            min-height: 1em;
+            padding-top: 2px;
+            padding-bottom: 2px;
+            outline: none;
+            display: block;
+        }
+
+        .elm-log-content {
+            display: inline-block;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .elm-log {
+            margin-bottom: 2px;
+            padding: 2px;
+            overflow: hidden;
+        }
+
+        .elm-log-time {
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        .elm-log-default {
+            background-color: var(--var_background_highlight_color);
+        }
+
+        .elm-log-error {
+            background-color: var(--var_console_error_color);
+        }
+
+        .elm-log-warn {
+            background-color: var(--var_console_warn_color);
+        }
+
+        .elm-log-debug {
+            background-color: var(--var_background_hover_color);
+        }
+
+        #elm-selector-info {
+            width: 100%;
+        }
+
+        #elm-selector-info>pre {
+            background-color: var(--var_background_highlight_color) !important;
+            padding: 0.5em;
+            max-height: 400px;
+            overflow-y: scroll;
+            overflow-x: hidden;
+        }
+
+        #elm-selector-info>pre>code {
+            color: var(--var_text_color) !important;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .elm-expand {
+            color: var(--var_text_highlight_color);
+            cursor: pointer;
+        }
+
+        .elm-console-link {
+            text-decoration: underline;
+        }
+
+        .elm-no-style {
+            color: inherit;
+            display: inline-block;
+            position: relative;
+            top: 0;
+            left: 0;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            outline: 0;
+            background-color: #0000;
+            filter: none;
+            backdrop-filter: none;
+            transform: none;
+            animation: none;
+            transition: none;
+        }
+
+        #elm-context-menu {
+            display: none;
+            font-size: 18px;
+            position: fixed;
+            color: var(--var_text_color) !important;
+            background-color: var(--var_background_highlight_color);
+            padding: 1em;
+            z-index: 1000000;
+        }
+
+        #elm-context-menu>span {
+            cursor: pointer;
+        }
+
+        .elm-context-menu-seperator {
+            background-color: var(--var_text_color);
+            display: block;
+            width: 100%;
+            height: 1px;
+            margin-top: 3px;
+            margin-bottom: 3px;
+        }
+    </style>
+    <script id="script">
+        let var_active = "elm-link-console"
+        const var_container = document.getElementById("elm-console")
+        const var_console_elm = document.getElementById("elm-log-container")
+        const var_eval_elm = document.getElementById("elm-eval")
+        const var_selector_elm = document.getElementById("elm-selector")
+        const var_selector_info = document.getElementById("elm-selector-info")
+        const var_context_menu = document.getElementById("elm-context-menu")
+        const var_mouse = { element: null, clickStart: 0, previousClick: 0 }
+        const var_console_history = []
+        let var_console_history_idx = 0
+        function funct_main() {
+            console.defaultLog = console.log.bind(console)
+            console.defaultError = console.error.bind(console)
+            console.defaultWarn = console.warn.bind(console)
+            console.defaultDebug = console.debug.bind(console)
+            console.log = function () {
+                console.defaultLog.apply(console, arguments)
+                funct_update(Array.from(arguments), "elm-log-default")
+            }
+            console.error = function () {
+                if (!(arguments[0] instanceof ErrorEvent)) console.defaultError.apply(console, arguments)
+                funct_update(Array.from(arguments), "elm-log-error")
+            }
+            console.warn = function () {
+                console.defaultWarn.apply(console, arguments)
+                funct_update(Array.from(arguments), "elm-log-warn")
+            }
+            console.debug = function () {
+                console.defaultDebug.apply(console, arguments)
+                funct_update(Array.from(arguments), "elm-log-debug")
+            }
+
+            window.addEventListener("error", console.error)
+            var_eval_elm.addEventListener("keydown", var_e => {
+                switch (var_e.key) {
+                    case "Enter":
+                        const var_code = var_eval_elm.value
+                        if (var_code.length === 0) return
+                        console.log(var_code)
+                        var_console_history.push(var_code)
+                        var_console_history_idx = 0
+                        var_eval_elm.value = ""
+                        try {
+                            const var_eval = eval(var_code)
+                            if (var_eval instanceof Promise) {
+                                return var_eval
+                                    .then(console.log)
+                                    .catch(console.error)
+                            }
+                            return console.log(var_eval)
+                        } catch (var_err) {
+                            return console.error(var_err)
+                        }
+                        break
+                    case "ArrowUp":
+                        var_e.preventDefault()
+                        var_console_history_idx--
+                        const var_next_selected = var_console_history[var_console_history.length + var_console_history_idx]
+                        if (var_next_selected == null) { var_console_history_idx++; break }
+                        var_eval_elm.value = var_next_selected
+                        break
+                    case "ArrowDown":
+                        var_e.preventDefault()
+                        var_console_history_idx++
+                        const var_prev_selected = var_console_history[var_console_history.length + var_console_history_idx]
+                        if (var_prev_selected == null) { var_console_history_idx--; break }
+                        var_eval_elm.value = var_prev_selected
+                        break
+                    case "Backspace":
+                        const var_del = var_eval_elm.value[var_eval_elm.selectionStart - 1]
+                        const var_selection_idx = var_eval_elm.selectionStart - 1
+                        if (var_del == null || var_eval_elm.selectionStart !== var_eval_elm.selectionEnd) break
+                        if (["[", "(", "{", '"', "'", "`"].includes(var_del)) {
+                            if (var_eval_elm.value[var_eval_elm.selectionStart] === { "{": "}", "[": "]", "(": ")", '"': '"', "'": "'", "`": "`" }[var_del]) {
+                                var_e.preventDefault()
+                                var_eval_elm.value = var_eval_elm.value.substring(0, var_eval_elm.selectionStart - 1) +
+                                    var_eval_elm.value.substring(var_eval_elm.selectionStart + 1)
+                                var_eval_elm.selectionStart = var_eval_elm.selectionEnd = var_selection_idx
+                            }
+                        }
+                        break
+                    default:
+                        if (["[", "]", "(", ")", "{", "}", '"', "'", "`"].includes(var_e.key)) {
+                            const var_start = var_eval_elm.selectionStart
+                            if (var_e.key !== var_eval_elm.value[var_start]) {
+                                if (["]", "}", ")"].includes(var_e.key)) break
+                                var_eval_elm.value = var_eval_elm.value.substring(0, var_eval_elm.selectionStart) +
+                                    var_e.key +
+                                    var_eval_elm.value.substring(var_eval_elm.selectionStart, var_eval_elm.selectionEnd) +
+                                    { "{": "}", "[": "]", "(": ")", '"': '"', "'": "'", "`": "`" }[var_e.key] +
+                                    var_eval_elm.value.substring(var_eval_elm.selectionEnd)
+                            }
+                            var_e.preventDefault()
+                            var_eval_elm.selectionEnd = var_eval_elm.selectionStart = var_start + 1
+                            var_eval_elm.focus()
+                        }
+                        break
+                }
+            })
+
+            var_container.addEventListener("click", var_e => {
+                if (var_e.which === 1) {
+                    if (var_active === "elm-link-console" && performance.now() - var_mouse.clickStart < 100 && performance.now() - var_mouse.previousClick > 350) var_eval_elm.focus()
+                }
+                var_context_menu.style.display = "none"
+            })
+
+            var_container.addEventListener("contextmenu", var_e => {
+                var_e.preventDefault()
+                var_context_menu.style.display = "block"
+                var_context_menu.style.top = var_e.clientY + "px"
+                var_context_menu.style.left = var_e.clientX + "px"
+                let var_buttons = "";
+                ({
+                    "elm-link-console": ["Clear console", "Clear console history", "sep", "Save as..."]
+                }[var_active] || []).forEach(var_link => {
+                    if (var_link === "sep") return var_buttons += '<div class="elm-context-menu-seperator"></div>'
+                    var_buttons += `<span onclick="funct_context_menu('${var_link}')">${var_link}</span><br>`
+                })
+                var_context_menu.innerHTML = var_buttons
+            })
+
+            var_container.addEventListener("pointerdown", var_e => {
+                var_mouse.previousClick = var_mouse.clickStart || performance.now()
+                var_mouse.clickStart = performance.now()
+            })
+
+            function funct_highlightElm(var_elm, var_remove_inner) {
+                if (typeof var_elm === "string") return funct_highlight(var_elm, true, "html")
+                if (var_elm.tagName === "SCRIPT" && !var_remove_inner) {
+                    const var_tag = var_elm.outerHTML.split(var_elm.innerHTML)
+                    return funct_highlight(var_tag[0], true, "html") +
+                    funct_highlight(var_elm.innerHTML, true, "js")+
+                    funct_highlight(var_tag[1], true, "html")
+                }
+                if (var_elm.innerHTML === "") var_remove_inner = false
+                return funct_highlight(var_remove_inner && var_elm.outerHTML.replace(var_elm.innerHTML, "\x01") || var_elm.outerHTML, true, "html")
+                    .replaceAll("\x01", "<span class='elm-expand'>...</span>")
+            }
+
+            function funct_mouse_move(var_e) {
+                if (var_active !== "elm-link-selector") return
+                const var_bounds = var_container.getBoundingClientRect()
+                if (var_bounds.left < var_e.clientX && var_e.clientX < var_bounds.right && var_bounds.top < var_e.clientY && var_e.clientY < var_bounds.bottom) return
+                if (var_mouse.element !== var_e.toElement) {
+                    var_selector_info.children[0].children[0].innerHTML = funct_highlightElm(var_e.toElement, true)
+                }
+                var_mouse.element = var_e.toElement
+            }
+
+
+            function funct_mouse_click(var_e) {
+                if (var_active !== "elm-link-selector") return
+                const var_bounds = var_container.getBoundingClientRect()
+                if (var_bounds.left < var_e.clientX && var_e.clientX < var_bounds.right && var_bounds.top < var_e.clientY && var_e.clientY < var_bounds.bottom) return
+                var_e.preventDefault()
+                let var_element = var_mouse.element
+                let text = funct_highlightElm(var_element.outerHTML)
+                while (var_element.parentNode != null) {
+                    const var_parent = var_element.parentNode
+                    if (!var_parent.outerHTML) break
+                    const var_idx = Array.prototype.indexOf.call(var_parent.children, var_element)
+                    const var_tag = var_parent.outerHTML.split(var_parent.innerHTML)
+                    text = funct_highlightElm(var_tag[0]) +
+                        [...var_parent.children]
+                            .slice(0, var_idx)
+                            .map(var_elm => { return funct_highlightElm(var_elm, true) })
+                            .join("\n") +
+                        "\n" +
+                        text +
+                        "\n" +
+                        [...var_parent.children]
+                            .slice(var_idx + 1)
+                            .map(var_elm => { return funct_highlightElm(var_elm, true) })
+                            .join("\n") +
+                            funct_highlightElm(var_tag[1])
+                    var_element = var_parent
+                }
+                var_selector_info.children[0].children[0].innerHTML = text
+                funct_switch("elm-link-elements")
+            }
+
+            document.addEventListener("click", funct_mouse_click)
+            document.addEventListener("mousemove", funct_mouse_move)
+
+            function funct_update(var_args, var_style) {
+                const var_scroll = var_console_elm.scrollHeight - (var_console_elm.scrollTop + var_console_elm.clientHeight)
+                var_args.forEach(var_log => {
+                    let var_str = ""
+                    switch (typeof var_log) {
+                        case "object":
+                            if (var_log.stack || (var_log.error && var_log.error.stack)) {
+                                var_str = var_log.stack || var_log.error.stack
+                                break
+                            }
+                            var_str = JSON.stringify(var_log, null, "\t")
+                            break
+                        default:
+                            var_str = var_log
+                            break
+                    }
+                    if (var_style === "elm-log-default") var_str = funct_highlight(var_str, false, "js"); else var_str = funct_HTMLSafe(var_str)
+                    var_str = funct_parse_links(var_str)
+                    var_console_elm.innerHTML += `<div class="elm-log ${var_style}"><span class="elm-log-time">[${new Date().toLocaleTimeString()}]:&nbsp;</span><div class="elm-log-content">${var_str}</div></div>`
+                })
+                if (var_scroll < 100) var_console_elm.scrollTo(0, var_console_elm.scrollHeight)
+            }
+        }
+
+        function funct_context_menu(var_id) {
+            switch (var_id) {
+                case "Clear console":
+                    var_console_elm.innerHTML = ""
+                    break
+                case "Clear console history":
+                    var_console_history.length = 0
+                    var_console_history_idx = 0
+                    break
+                case "Save as...":
+                    const var_logs = var_console_elm.innerText
+                    funct_download(var_logs, `${window.location.hostname}-${new Date().getTime()}.log`)
+                    break
+            }
+            var_context_menu.style.display = "none"
+        }
+
+        function funct_update_selector() {
+            if (var_active === "elm-link-console") return
+            const var_bounds = (var_mouse.element || document.body).getClientRects()[0]
+            if (var_bounds == null) return
+            var_selector_elm.style.left = var_bounds.x + "px"
+            var_selector_elm.style.top = var_bounds.y + "px"
+            var_selector_elm.style.width = var_bounds.width + "px"
+            var_selector_elm.style.height = var_bounds.height + "px"
+            window.requestAnimationFrame(funct_update_selector)
+        }
+
+        function funct_switch(var_id) {
+            if (var_id === var_active) return
+            document.getElementById(var_active).classList = "elm-link"
+            document.getElementById(var_id).classList = "elm-link elm-link-active"
+            var_active = var_id
+            switch (var_id) {
+                case "elm-link-console":
+                    var_console_elm.style.display = "block"
+                    var_eval_elm.style.display = "block"
+                    var_selector_elm.style.display = "none"
+                    var_selector_info.style.display = "none"
+                    break
+                case "elm-link-elements":
+                    var_console_elm.style.display = "none"
+                    var_eval_elm.style.display = "none"
+                    var_selector_info.style.display = "block"
+                    var_selector_elm.style.display = "none"
+                    funct_update_selector()
+                    break
+                case "elm-link-selector":
+                    var_console_elm.style.display = "none"
+                    var_eval_elm.style.display = "none"
+                    var_selector_info.style.display = "block"
+                    var_selector_elm.style.display = "block"
+                    funct_update_selector()
+                    break
+            }
+        }
+        function funct_parse_links(var_str) {
+            return var_str.replaceAll(/(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/g, (var_url) => {
+                return `<a href="http://${var_url.replace(/https?/, "")}" class="elm-console-link elm-no-style">${var_url}</a>`
+            })
+        }
+
+        function funct_highlight(var_str, var_always_highlight, var_lang, var_standard_esc) {
+            var_str = `${var_str}`
+            if (var_str.length > 25000) return funct_HTMLSafe(var_str, var_standard_esc)
+            const var_arr = [var_str]
+            funct_highlightMatches(var_arr, /(["'`]).*?((?<!\\)\1)/gm, "var_highlight_string")
+            funct_highlightMatches(var_arr, /(?<=[\s(+=\-*/%?~|^&]|^)(0x|0b|0o)?[\d\.]{1,}(?=[\s(+=\-*/%?~|^&]|$)/gim, "var_highlight_number")
+            if (var_lang === "html") {
+                funct_highlightMatches(var_arr, /(\<!--(.*?)--\>)/gs, "var_highlight_comment")
+                funct_highlightMatches(var_arr, /((?<=<\/?)\w{1,}(?=\s|>))/g, "var_highlight_keyword")
+                funct_highlightMatches(var_arr, /([</>]{1,})/g, "var_highlight_dull")
+            } else if (var_lang === "js") {
+                funct_highlightMatches(var_arr, /(\/\/.*$)/gm, "var_highlight_comment")
+                funct_highlightMatches(var_arr, /(\/\*.*?\*\/)/gs, "var_highlight_comment")
+                funct_highlightMatches(var_arr, /(?<=[^\w.]|^)(var|let|const|typeof|instanceof|arguments|async|function|delete|new|class|void|this|true|false|debugger|of|in|=>)(?=[^\w.]|$)/gm, "var_highlight_keyword")
+                funct_highlightMatches(var_arr, /(?<=[^\w.]|^)(if|else|elseif|do|while|for|await|throw|try|catch|switch|case|default|import|from|return|continue|yield)(?=[^\w.]|$)/gm, "var_highlight_block")
+                funct_highlightMatches(var_arr, /(?<=\W|^)(Array|Object|Number|String)(?=\W|$)/gm, "var_highlight_class")
+                funct_highlightMatches(var_arr, /(?<=[^\w.]|^)(undefined|null)(?=[^\w.]|$)/gm, "var_highlight_dull")
+            }
+            funct_highlightMatches(var_arr, /(\w{1,}(?=\())/gm, "var_highlight_function")
+            if (var_always_highlight || var_arr.some(var_elm => typeof var_elm === "object")) {
+                funct_highlightMatches(var_arr, /(\w{1,})/gm, "var_highlight_default")
+                // funct_highlightMatches(var_arr, /([<>/(){}[\]:;,\.&|~%*+\-=]*)/gi, "var_highlight_dull")
+            }
+            let var_highlighted_str = ""
+            for (const var_elm of var_arr) {
+                if (typeof var_elm === "object") {
+                    var_highlighted_str += `<span style="color:var(--${var_elm.color})">${funct_HTMLSafe(var_elm.str, var_standard_esc)}</span>`
+                }
+                else var_highlighted_str += funct_HTMLSafe(var_elm, var_standard_esc)
+            }
+            return var_highlighted_str.replaceAll(/((#([0-9a-f]{3}){1,2}|(rgba|hsla)\(\d{1,3}%?(,\s?\d{1,3}%?){2},\s?(1|0|0?\.\d+)\)|(rgb|hsl)\(\d{1,3}%?(,\s?\d{1,3}%?){2}\)))/ig, '<span class="elm-css-color">$1</span>')
+        }
+
+        function funct_highlightMatches(var_arr, var_Regex, var_color) {
+            for (let var_i = 0; var_i < var_arr.length;) {
+                let var_idx_offset = 0
+                if (typeof var_arr[var_i] === "string") {
+                    var_arr[var_i].replaceAll(var_Regex, (...args) => {
+                        const var_cut_str = args[0]
+                        const var_idx = args[args.length - 2] - var_idx_offset
+                        const var_start = var_arr[var_i].substring(0, var_idx)
+                        const var_end = var_arr[var_i].substring(var_idx + var_cut_str.length)
+                        const var_sub = [var_start, { str: var_cut_str, color: var_color }, var_end].filter(var_val => var_val !== "")
+                        var_arr.splice(var_i, 1, ...var_sub)
+                        var_i += var_sub.length - 1
+                        var_idx_offset += var_idx + var_cut_str.length
+                        return
+                    })
+                }
+                var_i++
+            }
+        }
+
+        function funct_download(var_file, var_name = "download.txt") {
+            const var_link = document.createElement("a")
+            const var_blob = new Blob([var_file])
+            var_link.href = URL.createObjectURL(var_blob)
+            var_link.download = var_name
+            var_link.click()
+            URL.revokeObjectURL(var_link.href)
+        }
+
+        function funct_HTMLSafe(var_str, var_standard_esc) {
+            let var_out = ""
+            if (var_standard_esc) {
+                for (const var_n of `${var_str}`) var_out += /[\x23-\x26\x3c\x3e]/g.test(var_n) ? "\\" + var_n : var_n;
+            } else {
+                for (const var_n of `${var_str}`) var_out += /[\x23-\x26\x3c\x3e]/g.test(var_n) ? `&#x${var_n.charCodeAt(0).toString(16)};` : var_n;
+            }
+            return var_out
+        }
+    </script>
+    <script src="minifyjs.js"></script>
+    <script src="minifycss.js"></script>
+    <script>
+        const id = `${Math.floor(Math.random() * 10000)}`.padStart(4, "0")
+        const keys = {}
+        const code = sub(document.getElementById("script").textContent)
+        const styles = sub(document.getElementById("style").textContent)
+        const elements = sub(document.getElementById("html").innerHTML)
+        const size = document.getElementById("size")
+        const button = document.getElementById("button")
+        const errors = document.getElementById("error")
+        const JS = UglifyJS.minify(code)
+        const CSS = new CleanCSS().minify(styles)
+        const HTML = elements.replaceAll(/\<!--(.*?)-\->|\s\B/gm, "").replaceAll("'", "\\'")
+        if (CSS.errors.length > 0) {
+            errors.innerText += "CSS:\n" + CSS.errors.join("\n") + "\n"
+        }
+        if (CSS.warnings.length > 0) {
+            errors.innerText += "CSS:\n" + CSS.warnings.join("\n") + "\n\n"
+        }
+        if (JS.error) {
+            const snip = code.slice(JS.error.pos, JS.error.pos + 50)
+            errors.innerText += `JS:\n"${snip}${JS.error.pos + 25 >= code.length ? "" : "..."}":\n${JS.error.message}\n\n`
+        } else {
+            button.setAttribute("href", "javascript:" +
+                "document.head.innerHTML+=\"<style>" +
+                (CSS.styles ?? "") +
+                "</style>\",document.body.innerHTML+='" +
+                HTML +
+                "';" +
+                JS.code +
+                sub(";funct_main()"))
+            const kb = Math.round(button.getAttribute("href").length / 1024 * 100) / 100
+            size.innerText = kb + " / 64kb"
+            size.style.color = "#f00"
+            if (kb < 50) size.style.color = "#f80"
+            if (kb < 32) size.style.color = "#ff0"
+            if (kb < 10) size.style.color = "#0f0"
+            button.click()
+            setTimeout(() => {
+                const t1 = performance.now()
+                console.log(document.body.style)
+                console.log(performance.now() - t1)
+            }, 100)
+        }
+
+        function sub(str) {
+            return `${str}`.replaceAll(/elm-([\w\-_]+)(?![\w\-_])/ig, (_, k) => {
+                if (keys["e" + k] == null) keys["e" + k] = `${Object.keys(keys).length}`
+                return `e${id}_${keys["e" + k]}`
+            }).replaceAll(/var_([\w_]+)(?![\w_])/ig, (_, k) => {
+                if (keys["v" + k] == null) keys["v" + k] = `${Object.keys(keys).length}`
+                return `v${id}_${keys["v" + k]}`
+            }).replaceAll(/funct_([\w_]+)(?![\w_])/ig, (_, k) => {
+                if (keys["f" + k] == null) keys["f" + k] = `${Object.keys(keys).length}`
+                return `f${id}_${keys["f" + k]}`
+            }).replaceAll(/#((([a-f0-9])\3){3,4})/gi, (a, b) => "#" + b.replaceAll(/(.){2}/gi, "$1").toUpperCase())
+        }
+    </script>
+</body>
+
+</html>
