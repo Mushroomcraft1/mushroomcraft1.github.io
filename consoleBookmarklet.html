@@ -65,6 +65,7 @@
             --var_highlight_color: #ff08;
             --var_highlight_outline_color: #0ff;
             --var_background_highlight_color: #0006;
+            --var_background_color: #282828cc;
             --var_background_hover_color: #aaa3;
             --var_console_warn_color: #fc08;
             --var_console_error_color: #f008;
@@ -126,7 +127,7 @@
         #elm-console {
             color: var(--var_text_color) !important;
             color-scheme: dark;
-            background-color: var(--var_background_highlight_color);
+            background-color: var(--var_background_color);
             width: 700px;
             height: 500px;
             padding: 30px;
@@ -199,6 +200,7 @@
             max-height: 400px;
             overflow-y: scroll;
             overflow-x: hidden;
+            scroll-behavior: smooth;
         }
 
         #elm-selector-info>pre>code {
@@ -256,6 +258,11 @@
             height: 1px;
             margin-top: 3px;
             margin-bottom: 3px;
+        }
+
+        #elm-elements-selected {
+            background-color: var(--var_background_hover_color);
+            display: inline-block;
         }
     </style>
     <script id="script">
@@ -415,8 +422,9 @@
                 const var_bounds = var_container.getBoundingClientRect()
                 if (var_bounds.left < var_e.clientX && var_e.clientX < var_bounds.right && var_bounds.top < var_e.clientY && var_e.clientY < var_bounds.bottom) return
                 var_e.preventDefault()
+                funct_switch("elm-link-elements")
                 let var_element = var_mouse.element
-                let text = funct_highlightElm(var_element.outerHTML)
+                let text = '<div id="elm-elements-selected">' + funct_highlightElm(var_element.outerHTML) + "</div>"
                 while (var_element.parentNode != null) {
                     const var_parent = var_element.parentNode
                     if (!var_parent.outerHTML) break
@@ -438,7 +446,7 @@
                     var_element = var_parent
                 }
                 var_selector_info.children[0].children[0].innerHTML = text
-                funct_switch("elm-link-elements")
+                document.getElementById("elm-elements-selected").scrollIntoView()
             }
 
             document.addEventListener("click", funct_mouse_click)
@@ -641,11 +649,6 @@
             if (kb < 32) size.style.color = "#ff0"
             if (kb < 10) size.style.color = "#0f0"
             button.click()
-            setTimeout(() => {
-                const t1 = performance.now()
-                console.log(document.body.style)
-                console.log(performance.now() - t1)
-            }, 100)
         }
 
         function sub(str) {
