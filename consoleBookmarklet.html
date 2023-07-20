@@ -69,7 +69,7 @@
             --var_background_hover_color: #aaa3;
             --var_console_warn_color: #fc08;
             --var_console_error_color: #f008;
-            --h-plain: #AAAAAA;
+            --var_highlight_plain: #AAAAAA;
             --var_highlight_default: #9CDCFE;
             --var_highlight_keyword: #569CD6;
             --var_highlight_block: #C586C0;
@@ -79,6 +79,15 @@
             --var_highlight_function: #DCDCAA;
             --var_highlight_class: #4EC9B0;
             --var_highlight_dull: #666666;
+        }
+
+        .elm-css-color {
+            color: var(--var_highlight_class);
+        }
+
+        .elm-css-color::before {
+            background-color: #f00;
+
         }
 
         #elm-selector {
@@ -127,6 +136,7 @@
         #elm-console {
             color: var(--var_text_color) !important;
             color-scheme: dark;
+            backdrop-filter: blur(2em);
             background-color: var(--var_background_color);
             width: 700px;
             height: 500px;
@@ -136,6 +146,16 @@
             right: 0;
             bottom: 0;
             font-size: 18px !important;
+        }
+
+        #elm-console::selection,
+        #elm-console>*::selection,
+        #elm-console>*>*::selection,
+        #elm-console>*>*>*::selection,
+        #elm-console>*>*>*>*::selection,
+        #elm-console>*>*>*>*>*::selection,
+        #elm-console>*>*>*>*>*>*::selection {
+            background-color: var(--var_background_hover_color) !important;
         }
 
         #elm-log-container {
@@ -398,10 +418,10 @@
                 if (var_elm.tagName === "SCRIPT" && !var_remove_inner) {
                     const var_tag = var_elm.outerHTML.split(var_elm.innerHTML)
                     return funct_highlight(var_tag[0], true, "html") +
-                    funct_highlight(var_elm.innerHTML, true, "js")+
-                    funct_highlight(var_tag[1], true, "html")
+                        funct_highlight(var_elm.innerHTML, true, "js") +
+                        funct_highlight(var_tag[1], true, "html")
                 }
-                if (var_elm.innerHTML === "") var_remove_inner = false
+                if (var_elm.innerHTML.trim() === "") var_remove_inner = false
                 return funct_highlight(var_remove_inner && var_elm.outerHTML.replace(var_elm.innerHTML, "\x01") || var_elm.outerHTML, true, "html")
                     .replaceAll("\x01", "<span class='elm-expand'>...</span>")
             }
@@ -430,19 +450,22 @@
                     if (!var_parent.outerHTML) break
                     const var_idx = Array.prototype.indexOf.call(var_parent.children, var_element)
                     const var_tag = var_parent.outerHTML.split(var_parent.innerHTML)
+                    if (var_tag[1] !== "") var_tag[2] += "\n"
                     text = funct_highlightElm(var_tag[0]) +
                         [...var_parent.children]
                             .slice(0, var_idx)
                             .map(var_elm => { return funct_highlightElm(var_elm, true) })
                             .join("\n") +
                         "\n" +
-                        text +
+                        text.split("\n")
+                            .map(var_str => "\t" + var_str)
+                            .join("\n") +
                         "\n" +
                         [...var_parent.children]
                             .slice(var_idx + 1)
                             .map(var_elm => { return funct_highlightElm(var_elm, true) })
                             .join("\n") +
-                            funct_highlightElm(var_tag[1])
+                        funct_highlightElm(var_tag[1])
                     var_element = var_parent
                 }
                 var_selector_info.children[0].children[0].innerHTML = text
@@ -543,12 +566,12 @@
             if (var_str.length > 25000) return funct_HTMLSafe(var_str, var_standard_esc)
             const var_arr = [var_str]
             funct_highlightMatches(var_arr, /(["'`]).*?((?<!\\)\1)/gm, "var_highlight_string")
-            funct_highlightMatches(var_arr, /(?<=[\s(+=\-*/%?~|^&]|^)(0x|0b|0o)?[\d\.]{1,}(?=[\s(+=\-*/%?~|^&]|$)/gim, "var_highlight_number")
             if (var_lang === "html") {
                 funct_highlightMatches(var_arr, /(\<!--(.*?)--\>)/gs, "var_highlight_comment")
-                funct_highlightMatches(var_arr, /((?<=<\/?)\w{1,}(?=\s|>))/g, "var_highlight_keyword")
+                funct_highlightMatches(var_arr, /((?<=<\/?)(\w|-){1,}(?=\s|>))/g, "var_highlight_keyword")
                 funct_highlightMatches(var_arr, /([</>]{1,})/g, "var_highlight_dull")
             } else if (var_lang === "js") {
+                funct_highlightMatches(var_arr, /(?<=[\s(+=\-*\/%?~|^&]|^)(0x|0b|0o)?[\d\.]{1,}(?=[\s(+=\-*\/%?~|^&]|$)/gim, "var_highlight_number")
                 funct_highlightMatches(var_arr, /(\/\/.*$)/gm, "var_highlight_comment")
                 funct_highlightMatches(var_arr, /(\/\*.*?\*\/)/gs, "var_highlight_comment")
                 funct_highlightMatches(var_arr, /(?<=[^\w.]|^)(var|let|const|typeof|instanceof|arguments|async|function|delete|new|class|void|this|true|false|debugger|of|in|=>)(?=[^\w.]|$)/gm, "var_highlight_keyword")
@@ -615,7 +638,7 @@
     <script>
         const id = `${Math.floor(Math.random() * 10000)}`.padStart(4, "0")
         const keys = {}
-        const code = sub(document.getElementById("script").textContent)
+        const code = sub(document.getElementById("script").textContent.replaceAll(/(?<=^|\W)const(?=$|\W)/gm, "let"))
         const styles = sub(document.getElementById("style").textContent)
         const elements = sub(document.getElementById("html").innerHTML)
         const size = document.getElementById("size")
@@ -634,14 +657,13 @@
             const snip = code.slice(JS.error.pos, JS.error.pos + 50)
             errors.innerText += `JS:\n"${snip}${JS.error.pos + 25 >= code.length ? "" : "..."}":\n${JS.error.message}\n\n`
         } else {
-            button.setAttribute("href", "javascript:" +
-                "document.head.innerHTML+=\"<style>" +
+            button.setAttribute("href", sub("javascript:let var_boilerplate_css_elm=document.createElement('style');var_boilerplate_css_elm.innerHTML=`") +
                 (CSS.styles ?? "") +
-                "</style>\",document.body.innerHTML+='" +
+                sub("`;document.head.appendChild(var_boilerplate_css_elm);let var_boilerplate_html_elm=document.createElement('div');var_boilerplate_html_elm.innerHTML=`" )+
                 HTML +
-                "';" +
-                JS.code +
-                sub(";funct_main()"))
+                sub("`;document.body.appendChild(var_boilerplate_html_elm);let var_boilerplate_js_elm=document.createElement('script');var_boilerplate_js_elm.innerHTML=" )+
+                JSON.stringify(JS.code) +
+                sub(";document.body.appendChild(var_boilerplate_js_elm);funct_main()"))
             const kb = Math.round(button.getAttribute("href").length / 1024 * 100) / 100
             size.innerText = kb + " / 64kb"
             size.style.color = "#f00"
