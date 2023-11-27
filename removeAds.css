@@ -1,0 +1,16 @@
+li.channel_c21703.container__8759a:nth-child(3)>div.interactive__776ee.interactive_a868bc.linkButton_ebd2ba:nth-child(1), /* Nitro button in DMs menu */
+li.channel_c21703.container__8759a:nth-child(4)>div.interactive__776ee.interactive_a868bc.linkButton_ebd2ba:nth-child(1), /* Shop button in DMs menu */
+div.innerWrapper__8cde3, /* Stupid "Boost this server" banner popup */
+div.guildBoostCtas_c37606, /* "Boost this server" button and "get nitro" in server settings menu */
+nav.sidebar__9e3e2 :nth-child(n+10):nth-child(-n+16), /* Nitro section in settings */
+div.container_d6bff4, /* Banner ad in profiles */
+button.shinyButton_fc8363, /* "Get Nitro button in "Profiles" */
+div.upsellOverlayContainer__08979, /* NiTrO PrEvIeW in "Server Profiles" */
+.colorPremiumGradient-38tGFG, /* Purple buttons (fun fact: all of them are to buy nitro) */
+#popout_176, /* Buy nitro popup */
+.upsell__54a69, /* "Get nitro" text when you have a too long message */
+[aria-label="Send a gift"], /* gIfT A FriEnD nItRo */ 
+[aria-label="Add Super Reaction"], [aria-label="Enable Super Reactions"] /* Super reactions 🤓 */
+{
+    display: none;
+}
