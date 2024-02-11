@@ -1,8 +1,8 @@
-li.channel_c21703.container__8759a:nth-child(3)>div.interactive__776ee.interactive_a868bc.linkButton_ebd2ba:nth-child(1), /* Nitro button in DMs menu */
-li.channel_c21703.container__8759a:nth-child(4)>div.interactive__776ee.interactive_a868bc.linkButton_ebd2ba:nth-child(1), /* Shop button in DMs menu */
+li>div>a[data-list-item-id="private-channels-uid_25028___nitro"], /* Nitro button in DMs menu */
+li>div>a[data-list-item-id="private-channels-uid_25028___shop"], /* Shop button in DMs menu */
 div.innerWrapper__8cde3, /* Stupid "Boost this server" banner popup */
 div.guildBoostCtas_c37606, /* "Boost this server" button and "get nitro" in server settings menu */
-nav.sidebar__9e3e2 :nth-child(n+10):nth-child(-n+16), /* Nitro section in settings */
+[aria-label="Gift Inventory"], [aria-label="Subscriptions"], [aria-label="Nitro"], /* Nitro section in settings */
 div.container_d6bff4, /* Banner ad in profiles */
 button.shinyButton_fc8363, /* "Get Nitro button in "Profiles" */
 div.upsellOverlayContainer__08979, /* NiTrO PrEvIeW in "Server Profiles" */
