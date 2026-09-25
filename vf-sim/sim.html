@@ -1,0 +1,202 @@
+<html theme="dark">
+	<head>
+		<style>
+			:root {
+				color-scheme: dark;
+			}
+
+			body, html {
+				margin: none;
+				padding: none;
+				background-color: black;
+				color: yellow;
+				font: 1rem "Fira Sans", sans-serif;
+			}
+			canvas {
+				width: 100%;
+				height: 100%;
+			}
+
+			.info {
+				position: absolute;
+			}
+
+			.right {
+				right: 0;
+				margin-right: 0.5rem;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="info">
+			<div><input type="range" min="1" max="100" step="1" id="sine-frequency"></input>Frequency:  <span id="sine-frequency-val"></span> Hz</div>
+			<div><input type="range" min="0" max="1" step="0.05" id="power"></input>Power:  <span id="power-val"></span> %</div>
+			<div><input type="range" min="0.01" max="1" step="0.01" id="time-warp"></input>Time Warp:  <span id="time-warp-val"></span>x</div>
+			<div><input type="range" min="0" max="1" step="0.1" id="movement"></input>Movement:  <span id="movement-val"></span> %</div>
+
+		</div>
+		<div class="info right">
+			<div>Mode: <select id="method">
+				<option value="ASYNC">Async</option>
+				<option value="SHE-PWM">SHE-PWM</option>
+			</select></div>
+			<div><input type="range" min="50" max="1000" step="50" id="carrier-frequency"></input>Carrier Frequency:  <span id="carrier-frequency-val"></span> Hz</div>
+			<div><input type="range" min="1" max="25" step="2" id="pulses"></input>Pulses:  <span id="pulses-val"></span></div>
+		</div>
+		<canvas id="canvas">
+			
+		</canvas>
+	</body>
+	<script src="./pulsing.js"></script>
+	<script>
+		const canvas = document.getElementById("canvas");
+		const ctx = canvas.getContext("2d");
+
+		const frequencyElement = document.getElementById("sine-frequency-val");
+		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
+		const powerElement = document.getElementById("power-val");
+		const pulsesElement = document.getElementById("pulses-val");
+		const timeWarpElement = document.getElementById("time-warp-val");
+		const movementElement = document.getElementById("movement-val");
+
+		const frequencyValue = document.getElementById("sine-frequency");
+		const carrierFrequencyValue = document.getElementById("carrier-frequency");
+		const powerValue = document.getElementById("power");
+		const pulsesValue = document.getElementById("pulses");
+		const timeWarpValue = document.getElementById("time-warp");
+		const movementValue = document.getElementById("movement");
+		const methodValue = document.getElementById("method");
+
+
+		frequencyValue.value = sineFreq;
+		carrierFrequencyValue.value = PWMfreq;
+		powerValue.value = power;
+		timeWarpValue.value = 0.1;
+		movementValue.value = 0;
+		pulsesValue.value = pulsePattern;
+
+		let move;
+
+		function frame() {
+			timeScale = timeWarpValue.value * 1000;
+			sineFreq = frequencyValue.value;
+			PWMfreq = carrierFrequencyValue.value;
+			power = powerValue.value;
+			move = movementValue.value;
+			method = methodValue.value
+			pulsePattern = pulsesValue.value;
+
+			setup();
+
+			frequencyElement.textContent = sineFreq;
+			carrierFrequencyElement.textContent = PWMfreq;
+			powerElement.textContent = Math.floor(power * 100);
+			timeWarpElement.textContent = timeScale / 1000;
+			movementElement.textContent = Math.floor(move * 100);
+			pulsesElement.textContent = pulsePattern;
+
+			const canvasWidth = canvas.clientWidth;
+			const canvasHeight= canvas.clientHeight;
+			canvas.width = canvasWidth;
+			canvas.height = canvasHeight;
+
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+			let phase1Height = Math.floor(canvasHeight / 4);
+			let phase2Height = Math.floor(canvasHeight / 2);
+			let phase3Height = Math.floor(canvasHeight / 4 * 3);
+			let waveHeight = 100;
+
+			let phase1top = phase1Height - waveHeight;
+			let phase1bottom = phase1Height + waveHeight;
+
+			let phase2top = phase2Height - waveHeight;
+			let phase2bottom = phase2Height + waveHeight;
+
+			let phase3top = phase3Height - waveHeight;
+			let phase3bottom = phase3Height + waveHeight;
+
+			let y = prevHeight = phase1Height;
+
+			let registerValues = prev = 0;
+
+			ctx.beginPath();
+			ctx.lineWidth = 1;
+
+			ctx.strokeStyle = "#ff0000";
+			ctx.moveTo(0, phase1Height);
+
+			for (let i = 0; i <= canvas.width; ++i) {
+				registerValues = pulse((i + performance.now() * move) * timeScale) & (high1 | low1);
+				y = registerValues & high1 ? phase1top : registerValues & low1 ? phase1bottom : phase1Height;
+
+				ctx.lineTo(i, prevHeight)
+				ctx.lineTo(i, y)
+				prev = registerValues;
+				prevHeight = y;
+			}
+
+			ctx.lineTo(canvasWidth, prevHeight)
+			ctx.stroke();
+			ctx.strokeStyle = "#ffff00";
+
+			prevHeight = phase2Height;
+			ctx.beginPath();
+			ctx.moveTo(0, phase2Height);
+
+			for (let i = 0; i <= canvas.width; ++i) {
+				registerValues = pulse((i + performance.now() * move) * timeScale) & (high2 | low2);
+				y = registerValues & high2 ? phase2top : registerValues & low2 ? phase2bottom : phase2Height;
+
+				ctx.lineTo(i, prevHeight)
+				ctx.lineTo(i, y)
+				prev = registerValues;
+				prevHeight = y;
+			}
+
+			ctx.lineTo(canvasWidth, prevHeight)
+			ctx.stroke();
+			ctx.strokeStyle = "#0000ff";
+
+			prevHeight = phase3Height;
+			ctx.beginPath();
+			ctx.moveTo(0, phase3Height);
+
+			for (let i = 0; i <= canvas.width; ++i) {
+				registerValues = pulse((i + performance.now() * move) * timeScale) & (high3 | low3);
+				y = registerValues & high3 ? phase3top : registerValues & low3 ? phase3bottom : phase3Height;
+
+				ctx.lineTo(i, prevHeight)
+				ctx.lineTo(i, y)
+				prev = registerValues;
+				prevHeight = y;
+			}
+
+			ctx.lineTo(canvasWidth, prevHeight)
+			ctx.stroke();
+
+
+			let sinOffset = 0;
+
+			for (const mid of [phase1Height, phase2Height, phase3Height]) {
+				ctx.beginPath();
+				ctx.strokeStyle = "#ffffff";
+				ctx.moveTo(-100, mid);
+
+				for (let i = 0; i <= canvas.width; ++i) {
+					ctx.lineTo(i, mid + waveHeight * -Math.sin((2 *  sineFreq *
+						(i + performance.now() * move) 
+						* Math.PI)
+						/ 1000 * timeScale / 1000 + sinOffset));
+				}
+				ctx.stroke();
+
+				sinOffset -= Math.PI * 2 / 3;
+			}
+
+			window.requestAnimationFrame(frame);
+		}
+
+		frame();
+	</script>
+</html>
