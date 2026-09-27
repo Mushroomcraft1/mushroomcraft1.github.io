@@ -49,10 +49,13 @@
 		</canvas>
 	</body>
 	<script src="./pulsing.js"></script>
+	<script src="./render.js"></script>
+	<script src="./sound.js"></script>
 	<script>
 		const canvas = document.getElementById("canvas");
 		const ctx = canvas.getContext("2d");
 
+		// Sliders
 		const frequencyElement = document.getElementById("sine-frequency-val");
 		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
 		const powerElement = document.getElementById("power-val");
@@ -68,215 +71,52 @@
 		const movementValue = document.getElementById("movement");
 		const methodValue = document.getElementById("method");
 
-		frequencyValue.value = sineFreq;
-		carrierFrequencyValue.value = PWMfreq;
-		powerValue.value = power;
-		timeWarpValue.value = 1;
+		// Default values for sliders
+		frequencyValue.value = 1;
+		carrierFrequencyValue.value = 300;
+		powerValue.value = 0.1;
+		timeWarpValue.value = 0.1;
 		movementValue.value = 0;
-		pulsesValue.value = pulsePattern;
+		pulsesValue.value = 21;
+		methodValue.value = "ASYNC";
 
-		let move;
+		setCanvas(canvas, ctx);
+		startSound();
+		
+		// Single phase visualisation that takes up most of the canvas
+		/*
+		setRenderOptions({
+			renderSinglePhase: true,
+			waveHeight: 0.4,
+			phase1Position: 0.5
+		});
+		*/
 
-		const audioDuration = 50;
-		const samplesPerMillisecond = 48;
-		const audioCtx = new AudioContext();
-		audioCtx.sampleRate = 1000 * samplesPerMillisecond;
-		const samples = audioDuration * samplesPerMillisecond;
-		const buffer1 = audioCtx.createBuffer(1, samples, audioCtx.sampleRate);
-		const buffer2 = audioCtx.createBuffer(1, samples, audioCtx.sampleRate);
-		const pulseData = new Int8Array(samples);
-		const pulseHeight = 0.1;
+		function loop() {
+			setFrequency(frequencyValue.value);
+			setCarrierFrequency(carrierFrequencyValue.value);
+			setPower(powerValue.value);
+			setPulsingMethod(methodValue.value);
+			setPulseCount(pulsesValue.value);
 
-		let prevPulse = 0;
+			setRenderOptions({
+				timeScale: timeWarpValue.value * 1000,
+				movement: movementValue.value
+			});
 
+			// Update text next to the sliders
+			frequencyElement.textContent = frequencyValue.value;
+			carrierFrequencyElement.textContent = carrierFrequencyValue.value;
+			powerElement.textContent = Math.floor(powerValue.value * 100);
+			pulsesElement.textContent = pulsesValue.value;
+			timeWarpElement.textContent = timeWarpValue.value;
+			movementElement.textContent = Math.floor(movementValue.value * 100);
 
-		let activeBuffer = 0;
-		let currentBuffer;
+			renderVisualisations();
 
-		let startIdx = 0;
-		let startTime = 0;
+			requestAnimationFrame(loop);
+		};
 
-		function frame() {
-			timeScale = timeWarpValue.value * 1000;
-			sineFreq = frequencyValue.value;
-			PWMfreq = carrierFrequencyValue.value;
-			power = powerValue.value;
-			move = movementValue.value;
-			method = methodValue.value
-			pulsePattern = pulsesValue.value;
-
-			setup();
-
-			frequencyElement.textContent = sineFreq;
-			carrierFrequencyElement.textContent = PWMfreq;
-			powerElement.textContent = Math.floor(power * 100);
-			timeWarpElement.textContent = timeScale / 1000;
-			movementElement.textContent = Math.floor(move * 100);
-			pulsesElement.textContent = pulsePattern;
-
-			const canvasWidth = canvas.clientWidth;
-			const canvasHeight= canvas.clientHeight;
-			canvas.width = canvasWidth;
-			canvas.height = canvasHeight;
-
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			pulseData.fill(0);
-
-			let phase1Height = Math.floor(canvasHeight / 4);
-			let phase2Height = Math.floor(canvasHeight / 2);
-			let phase3Height = Math.floor(canvasHeight / 4 * 3);
-			let waveHeight = 100;
-
-			let phase1top = phase1Height - waveHeight;
-			let phase1bottom = phase1Height + waveHeight;
-
-			let phase2top = phase2Height - waveHeight;
-			let phase2bottom = phase2Height + waveHeight;
-
-			let phase3top = phase3Height - waveHeight;
-			let phase3bottom = phase3Height + waveHeight;
-
-			let y = prevHeight = phase1Height;
-
-			let registerValues = prev = 0;
-
-			ctx.beginPath();
-			ctx.lineWidth = 1;
-
-			ctx.strokeStyle = "#ff0000";
-			ctx.moveTo(0, phase1Height);
-
-			for (let i = 0; i <= canvas.width; ++i) {
-				registerValues = pulse((i + performance.now() * move) * timeScale) & (high1 | low1);
-				y = registerValues & high1 ? phase1top : registerValues & low1 ? phase1bottom : phase1Height;
-				
-				pulseData[i] |= registerValues;
-				
-				ctx.lineTo(i, prevHeight)
-				ctx.lineTo(i, y)
-				prev = registerValues;
-				prevHeight = y;
-			}
-
-			ctx.lineTo(canvasWidth, prevHeight)
-			ctx.stroke();
-			ctx.strokeStyle = "#ffff00";
-
-			prevHeight = phase2Height;
-			ctx.beginPath();
-			ctx.moveTo(0, phase2Height);
-
-			for (let i = 0; i <= canvas.width; ++i) {
-				registerValues = pulse((i + performance.now() * move) * timeScale) & (high2 | low2);
-				y = registerValues & high2 ? phase2top : registerValues & low2 ? phase2bottom : phase2Height;
-
-				pulseData[i] |= registerValues;
-
-				ctx.lineTo(i, prevHeight)
-				ctx.lineTo(i, y)
-				prev = registerValues;
-				prevHeight = y;
-			}
-
-			ctx.lineTo(canvasWidth, prevHeight)
-			ctx.stroke();
-			ctx.strokeStyle = "#0000ff";
-
-			prevHeight = phase3Height;
-			ctx.beginPath();
-			ctx.moveTo(0, phase3Height);
-
-			for (let i = 0; i <= canvas.width; ++i) {
-				registerValues = pulse((i + performance.now() * move) * timeScale) & (high3 | low3);
-				y = registerValues & high3 ? phase3top : registerValues & low3 ? phase3bottom : phase3Height;
-
-				pulseData[i] |= registerValues;
-
-				ctx.lineTo(i, prevHeight)
-				ctx.lineTo(i, y)
-				prev = registerValues;
-				prevHeight = y;
-			}
-
-			ctx.lineTo(canvasWidth, prevHeight)
-			ctx.stroke();
-
-			let sinOffset = 0;
-
-			for (const mid of [phase1Height, phase2Height, phase3Height]) {
-				ctx.beginPath();
-				ctx.strokeStyle = "#ffffff";
-				ctx.moveTo(-100, mid);
-
-				for (let i = 0; i <= canvas.width; ++i) {
-					ctx.lineTo(i, mid + waveHeight * -Math.sin((2 *  sineFreq *
-						(i + performance.now() * move) 
-						* Math.PI)
-						/ 1000 * timeScale / 1000 + sinOffset));
-				}
-				ctx.stroke();
-
-				sinOffset -= Math.PI * 2 / 3;
-			}
-
-			window.requestAnimationFrame(frame);
-		}
-
-		// Counts the number of 1 bits in an integer
-		function popCount(x) {
-			let n = 0;
-    		while (x) {
-        		x &= x - 1;
-        		++n;
-    		}
-    		return n ;
-		}
-
-		setInterval(() => {
-				const source = audioCtx.createBufferSource();
-				source.buffer = currentBuffer;
-				source.connect(audioCtx.destination);
-				source.start();
-
-				startTime = performance.now();
-
-				let prev = 0;
-				let currentPulse = 0;
-				let sign = 1;
-
-				currentBuffer = activeBuffer ? buffer1 : buffer2; 
-				activeBuffer = ~activeBuffer & 1;
-
-
-				for (let i = 0; i < pulseData.length; ++i) {
-					pulseData[i] = pulse(i / samplesPerMillisecond * 1000 + startIdx);
-				}
-
-				startIdx += pulseData.length;
-
-				let noOfHighBits = 0;
-				let noOfLowBits = 0;
-
-				const nowBuffering = currentBuffer.getChannelData(0);
-				for (let i = 0; i < pulseData.length; ++i) {
-					registerValues = pulseData[i];
-
-					let newNoOfHighBits = popCount(registerValues & highMask);
-					let newNoOfLowBits = popCount(registerValues & lowMask);
-
-					currentPulse = newNoOfHighBits > 0 && newNoOfLowBits > 0 ? (newNoOfHighBits + newNoOfLowBits) * pulseHeight : 0;
-
-					if (currentPulse == 0 && currentPulse != prevPulse) sign *= -1;
-
-					nowBuffering[i] = currentPulse * sign;
-
-					noOfHighBits = newNoOfHighBits;
-					noOfHighBits = newNoOfLowBits;
-					
-					prevPulse = currentPulse;
-				}
-		}, audioDuration);
-
-		frame();
+		loop();
 	</script>
 </html>

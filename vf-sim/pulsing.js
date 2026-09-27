@@ -1,6 +1,5 @@
-let method
-
-let registersOn = 0;
+// "ASYNC", "SYNC", "SHE-PWM"
+let method;
 
 let Sine1 = 0;
 let Sine2 = 0;
@@ -9,15 +8,13 @@ let percentageTime1 = 0;
 let percentageTime2 = 0;
 let percentageTime3 = 0;
 
-let deadTime = 100;
-
-let PWMfreq = 400; 
-let sineFreq = 3;
-let power = 0.2;
+let PWMfreq; 
+let sineFreq;
+let power;
 let sineFreqTime;
 let sineFreqTimeInt;
 
-let pulsePattern = 3;
+let pulsePattern;
 let noOfPulses;
 
 const SHEPulsing = [
@@ -36,17 +33,11 @@ let pulseTimes;
 
 const sin = Math.sin;
 const abs = Math.abs;
+const floor = Math.floor;
 const PI = Math.PI;
-let tau;
-let offset120deg;
-let offset240deg;
-
-let repeatInterval;
-let repeatIntervalInt;
-let potVal;
-
-let PWMfreqTime;
-let PWMfreqTimeInt;
+let tau = PI * 2;
+let offset120deg = tau * 1/3;
+let offset240deg = tau * 2/3;
 
 let high1  = 0b00000001;
 let low1   = 0b00000010;
@@ -55,9 +46,9 @@ let low2   = 0b00001000;
 let high3  = 0b00010000;
 let low3   = 0b00100000;
 
-let highMask;
-let lowMask;
-let fullMask;
+let highMask = high1 | high2 | high3;
+let lowMask = low1 | low2 | low3;
+let fullMask = highMask | lowMask;
 
 let registers;
 
@@ -67,26 +58,51 @@ for (const pulses of SHEPulsing) {
     }
 }
 
-function setup() {
-    tau = PI * 2;
-    offset120deg = tau * 1/3;
-    offset240deg = tau * 2/3;
+/**
+ * Frequency of the sine waves to generate
+ * @param {Float} newFrequency 
+ */
+function setFrequency(newFrequency) {
+    sineFreq = newFrequency;
+    sineFreqTime = 1000 / newFrequency;
+    sineFreqTimeInt = floor(sineFreqTime);
+}
 
-    highMask = high1 | high2 | high3;
-    lowMask = low1 | low2 | low3;
+/**
+ * Sets the power factor to be currently used
+ * @param {Float} newPower - Between 0 and 1 
+ */
+function setPower(newPower) {
+    power = newPower;
+}
 
-    fullMask = highMask | lowMask;
-    
-    sineFreqTime = 1000 / sineFreq;
-    sineFreqTimeInt = Math.floor(sineFreqTime);
-    PWMfreqTime = 1000000 / PWMfreq;
-    PWMfreqTimeInt = Math.floor(PWMfreqTime);
+/**
+ *  Sets the number of pulses in Synchronous and SHE-PWM pulsing modes
+ *  @param {Integer} newMethod - Odd integer, must not exceed 17 in SHE-PWM mode
+*/
+function setPulseCount(newPulseCount) {
+    pulsePattern = newPulseCount;
+    noOfPulses = newPulseCount * 4;
 
-    repeatInterval = 5000;
-    repeatIntervalInt = Math.floor(repeatInterval * tau);
-
-    pulseTimes = SHEPulsing[(pulsePattern - 1) / 2] ?? SHEPulsing[1];
+    pulseTimes = SHEPulsing[(pulsePattern - 1) / 2] ?? SHEPulsing[0];
     noOfPulses = pulsePattern * 4;
+}
+
+/**
+ * Sets the pulsing frequency in Async mode
+ * @param {Float} newFrequency 
+ */
+function setCarrierFrequency(newFrequency) {
+    PWMfreq = newFrequency;
+    PWMfreqTime = 1000000 / newFrequency;
+    PWMfreqTimeInt = Math.floor(PWMfreqTime);
+}
+
+/**
+  * @param {String} newMethod - "ASYNC", "SYNC", "SHE-PWM"
+*/
+function setPulsingMethod(newMethod) {
+    method = newMethod;
 }
 
 function pulse(microsec) {
@@ -97,7 +113,7 @@ function pulse(microsec) {
         let mask1 = mask2 = mask3 = mask = 0;
 
         curTime = microsec % PWMfreqTimeInt;
-        milsec = Math.floor(microsec / 1000) % sineFreqTimeInt;
+        milsec = floor(microsec / 1000) % sineFreqTimeInt;
 
         const progress = (milsec / sineFreqTime);
 
