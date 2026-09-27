@@ -2,9 +2,9 @@ let method
 
 let registersOn = 0;
 
-let PWMPercentage1 = 0;
-let PWMPercentage2 = 0;
-let PWMPercentage3 = 0;
+let Sine1 = 0;
+let Sine2 = 0;
+let Sine3 = 0;
 let percentageTime1 = 0;
 let percentageTime2 = 0;
 let percentageTime3 = 0;
@@ -12,12 +12,13 @@ let percentageTime3 = 0;
 let deadTime = 100;
 
 let PWMfreq = 400; 
-let sineFreq = 10;
+let sineFreq = 3;
 let power = 0.2;
 let sineFreqTime;
 let sineFreqTimeInt;
 
 let pulsePattern = 3;
+let noOfPulses;
 
 const SHEPulsing = [
     [36.8699],
@@ -85,6 +86,7 @@ function setup() {
     repeatIntervalInt = Math.floor(repeatInterval * tau);
 
     pulseTimes = SHEPulsing[(pulsePattern - 1) / 2] ?? SHEPulsing[1];
+    noOfPulses = pulsePattern * 4;
 }
 
 function pulse(microsec) {
@@ -97,42 +99,56 @@ function pulse(microsec) {
         curTime = microsec % PWMfreqTimeInt;
         milsec = Math.floor(microsec / 1000) % sineFreqTimeInt;
 
+        const progress = (milsec / sineFreqTime);
+
         // Swap one of the phases to change direction
         if (sineFreq > 0) {
-            PWMPercentage1 = sin((milsec / sineFreqTime) * tau);
-            PWMPercentage2 = sin((milsec / sineFreqTime) * tau - offset120deg);
-            PWMPercentage3 = sin((milsec / sineFreqTime) * tau - offset240deg);
+            Sine1 = sin(progress * tau);
+            Sine2 = sin(progress * tau - offset120deg);
+            Sine3 = sin(progress * tau - offset240deg);
         } else {
-            PWMPercentage1 = sin((milsec / sineFreqTime) * tau - offset120deg) ;
-            PWMPercentage2 = sin((milsec / sineFreqTime) * tau);
-            PWMPercentage3 = sin((milsec / sineFreqTime) * tau - offset240deg);
+            Sine1 = sin(progress * tau - offset120deg) ;
+            Sine2 = sin(progress * tau);
+            Sine3 = sin(progress * tau - offset240deg);
         }
 
         switch (method) { 
             case "ASYNC": {
-                percentageTime1 = abs(PWMPercentage1 * power) * PWMfreqTime;
-                percentageTime2 = abs(PWMPercentage2 * power) * PWMfreqTime;
-                percentageTime3 = abs(PWMPercentage3 * power) * PWMfreqTime;
+                percentageTime1 = abs(Sine1 * power) * PWMfreqTime;
+                percentageTime2 = abs(Sine2 * power) * PWMfreqTime;
+                percentageTime3 = abs(Sine3 * power) * PWMfreqTime;
 
-                mask1 = (PWMPercentage1 > 0 ? high1 : low1);
-                mask2 = (PWMPercentage2 > 0 ? high2 : low2);
-                mask3 = (PWMPercentage3 > 0 ? high3 : low3);
+                mask1 = (Sine1 > 0 ? high1 : low1);
+                mask2 = (Sine2 > 0 ? high2 : low2);
+                mask3 = (Sine3 > 0 ? high3 : low3);
                 
                 mask = ((curTime < percentageTime1) ? mask1 : 0)
-                        | ((curTime < percentageTime2) ? mask2 : 0)
-                        | ((curTime < percentageTime3) ? mask3 : 0);
+                     | ((curTime < percentageTime2) ? mask2 : 0)
+                     | ((curTime < percentageTime3) ? mask3 : 0);
+                break;
+            }
+            case "SYNC": {
+                const triangleSync = abs((noOfPulses * progress % 2) - 1);
+
+                pattern1 = Sine1 > 0 ? high1 : low1;
+                pattern2 = Sine2 > 0 ? high2 : low2;
+                pattern3 = Sine3 > 0 ? high3 : low3;
+
+                mask1 = abs(Sine1 * power) > triangleSync ? pattern1 : 0;
+                mask2 = abs(Sine2 * power) > triangleSync ? pattern2 : 0;
+                mask3 = abs(Sine3 * power) > triangleSync ? pattern3 : 0;
+
+                mask = mask1 | mask2 | mask3;
                 break;
             }
             case "SHE-PWM": {
-                const progress = milsec / sineFreqTime;
-
-                currentSin1 = abs(PWMPercentage1);
-                currentSin2 = abs(PWMPercentage2);
-                currentSin3 = abs(PWMPercentage3);
+                currentSin1 = abs(Sine1);
+                currentSin2 = abs(Sine2);
+                currentSin3 = abs(Sine3);
                 
-                pattern1 = PWMPercentage1 > 0 ? high1 : low1;
-                pattern2 = PWMPercentage2 > 0 ? high2 : low2;
-                pattern3 = PWMPercentage3 > 0 ? high3 : low3;
+                pattern1 = Sine1 > 0 ? high1 : low1;
+                pattern2 = Sine2 > 0 ? high2 : low2;
+                pattern3 = Sine3 > 0 ? high3 : low3;
 
                 for (let i = 0; i < pulsePattern; ++i) {
                     if (pulseTimes[i] <= currentSin1) {
