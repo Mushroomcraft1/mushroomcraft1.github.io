@@ -1,5 +1,5 @@
 // "ASYNC", "SYNC", "SHE-PWM"
-let method;
+let pulsingMethod;
 
 let Sine1 = 0;
 let Sine2 = 0;
@@ -10,9 +10,10 @@ let percentageTime3 = 0;
 
 let PWMfreq; 
 let sineFreq;
-let power;
+let pulsingPower;
 let sineFreqTime;
 let sineFreqTimeInt;
+let microsecMod;
 
 let pulsePattern;
 let noOfPulses;
@@ -52,9 +53,9 @@ let fullMask = highMask | lowMask;
 
 let registers;
 
-for (const pulses of SHEPulsing) {
-    for (let i = 0; i < pulses.length; ++i) {
-        pulses[i] = sin(pulses[i] / 360 * PI * 2);
+for (const setPulses of SHEPulsing) {
+    for (let i = 0; i < setPulses.length; ++i) {
+        setPulses[i] = sin(setPulses[i] / 360 * PI * 2);
     }
 }
 
@@ -64,7 +65,7 @@ for (const pulses of SHEPulsing) {
  */
 function setFrequency(newFrequency) {
     sineFreq = newFrequency;
-    sineFreqTime = 1000 / newFrequency;
+    sineFreqTime = 1000000 / newFrequency;
     sineFreqTimeInt = floor(sineFreqTime);
 }
 
@@ -73,7 +74,7 @@ function setFrequency(newFrequency) {
  * @param {Float} newPower - Between 0 and 1 
  */
 function setPower(newPower) {
-    power = newPower;
+    pulsingPower = newPower;
 }
 
 /**
@@ -102,16 +103,16 @@ function setCarrierFrequency(newFrequency) {
   * @param {String} newMethod - "ASYNC", "SYNC", "SHE-PWM"
 */
 function setPulsingMethod(newMethod) {
-    method = newMethod;
+    pulsingMethod = newMethod;
 }
 
 function pulse(microsec) {
     let mask1 = mask2 = mask3 = mask = 0;
 
     curTime = microsec % PWMfreqTimeInt;
-    milsec = microsec / 1000 % sineFreqTimeInt;
+    microsecMod = microsec % sineFreqTimeInt;
 
-    const progress = (milsec / sineFreqTime);
+    const progress = (microsecMod / sineFreqTime);
 
     // Swap one of the phases to change direction
     if (sineFreq > 0) {
@@ -124,11 +125,11 @@ function pulse(microsec) {
         Sine3 = sin(progress * tau - offset240deg);
     }
 
-    switch (method) { 
+    switch (pulsingMethod) { 
         case "ASYNC": {
-            percentageTime1 = abs(Sine1 * power) * PWMfreqTime;
-            percentageTime2 = abs(Sine2 * power) * PWMfreqTime;
-            percentageTime3 = abs(Sine3 * power) * PWMfreqTime;
+            percentageTime1 = abs(Sine1 * pulsingPower) * PWMfreqTime;
+            percentageTime2 = abs(Sine2 * pulsingPower) * PWMfreqTime;
+            percentageTime3 = abs(Sine3 * pulsingPower) * PWMfreqTime;
 
             mask1 = (Sine1 > 0 ? high1 : low1);
             mask2 = (Sine2 > 0 ? high2 : low2);
@@ -146,9 +147,9 @@ function pulse(microsec) {
             pattern2 = Sine2 > 0 ? high2 : low2;
             pattern3 = Sine3 > 0 ? high3 : low3;
 
-            mask1 = abs(Sine1 * power) > triangleSync ? pattern1 : 0;
-            mask2 = abs(Sine2 * power) > triangleSync ? pattern2 : 0;
-            mask3 = abs(Sine3 * power) > triangleSync ? pattern3 : 0;
+            mask1 = abs(Sine1 * pulsingPower) > triangleSync ? pattern1 : 0;
+            mask2 = abs(Sine2 * pulsingPower) > triangleSync ? pattern2 : 0;
+            mask3 = abs(Sine3 * pulsingPower) > triangleSync ? pattern3 : 0;
 
             mask = mask1 | mask2 | mask3;
             break;

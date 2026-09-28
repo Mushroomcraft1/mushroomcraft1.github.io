@@ -1,0 +1,197 @@
+<html theme="dark">
+	<head>
+		<style>
+			:root {
+				color-scheme: dark;
+			}
+
+			body, html {
+				margin: none;
+				padding: none;
+				background-color: black;
+				color: yellow;
+				font: 1rem "Fira Sans", sans-serif;
+			}
+			canvas {
+				position: fixed;
+				width: 100%;
+				height: 25%;
+				bottom: 0;
+			}
+
+			.info {
+				position: absolute;
+			}
+
+			.throttle {
+				position: absolute;
+				top: 50%;
+			}
+
+			.right {
+				right: 0;
+				margin-right: 0.5rem;
+			}
+
+			.centre {
+				left: 30%;
+				margin-right: 0.5rem;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="info">
+			<div>Frequency:  <span id="sine-frequency-val"></span> Hz</div>
+			<div>Power:  <span id="power-val"></span> %</div>
+		</div>
+		<div class="info centre">
+			<div>Audio: <select id="audio">
+				<option value="24S">24kHz Single Phase</option>
+				<option value="48S">48kHz Single Phase</option>
+				<option value="96S">96kHz Single Phase</option>
+				<option value="24T">24kHz 3 Phase</option>
+				<option value="48T">48kHz 3 Phase</option>
+				<option value="96T">96kHz 3 Phase</option>
+			</select></div>
+		</div>
+		<div class="info right">
+			<div>Mode: <span id="method"></span></div>
+			<div>Carrier Frequency:  <span id="carrier-frequency-val"></span> Hz</div>
+			<div>Pulses:  <span id="pulses-val"></span></div>
+		</div>
+		<div class="throttle">
+			<button id="increase">Increase Throttle</button>
+			<button id="decrease">Decrease Throttle</button>
+		</div>
+		<canvas id="canvas">
+			
+		</canvas>
+	</body>
+	<script src="./pulsing.js"></script>
+	<script src="./render.js"></script>
+	<script src="./sound.js"></script>
+	<script>
+		const canvas = document.getElementById("canvas");
+		const ctx = canvas.getContext("2d");
+
+		const increaseButton = document.getElementById("increase");
+		const decreaseButton = document.getElementById("decrease");
+
+		// Sliders
+		const frequencyElement = document.getElementById("sine-frequency-val");
+		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
+		const powerElement = document.getElementById("power-val");
+		const pulsesElement = document.getElementById("pulses-val");
+
+		const audioOptionsValue = document.getElementById("audio");
+		const methodText = document.getElementById("method");
+
+		audioOptionsValue.value = "48T";
+
+		audioOptionsValue.addEventListener("change", () => {
+			stopSound();
+			setSoundOptions({
+				sampleRate: parseInt(audioOptionsValue.value.slice(0, 2)) * 1000,
+				singlePhase: audioOptionsValue.value.endsWith("S")
+			});
+			console.log(soundOptions);
+			startSound();
+		})
+
+		setCanvas(canvas, ctx);
+		startSound();
+
+		increaseButton.addEventListener("pointerdown", () => {
+			throttle = 0.3;
+		})
+
+		decreaseButton.addEventListener("pointerdown", () => {
+			throttle = -0.3;
+		})
+
+		increaseButton.addEventListener("pointerup", () => {
+			throttle = 0;
+		})
+
+		decreaseButton.addEventListener("pointerup", () => {
+			throttle = 0;
+		})
+		
+		// Single phase visualisation that takes up most of the canvas
+		setRenderOptions({
+			renderSinglePhase: true,
+			waveHeight: 0.4,
+			phase1Position: 0.5,
+			sampleRate: 10000,
+			samplesPerPixel: 2
+		});
+
+		let frequency = 0;
+		let power = 0;
+		let throttle = 0;
+
+		setCarrierFrequency(300);
+
+		let prevFrame = 0;
+
+		function loop() {
+			const time = performance.now();
+			const delta = 1 / (time - prevFrame);
+			prevFrame = time;
+
+			frequency += delta * throttle;
+			power = Math.abs(Math.min(1, frequency / 50));
+			if (Math.abs(frequency) < 0.2 || throttle < 0 && frequency < 5) power = 0;
+
+			setFrequency(frequency);
+			setPower(power);
+
+			// Asynchronous 300Hz (intersective)
+			// Synchronous 21P (intersective),
+			// 15P (intersective), 
+			// SHE11 (4 angle computed),
+			// SHE7 (3 angle computed),
+			// SHE5 (2 angle computed),
+			// SHE3 (1 angle computed),
+			// 1P (full wave)
+
+			if (frequency < 7.2) {
+				setPulsingMethod("ASYNC");
+			} else if (frequency < 8.6) {
+				setPulseCount(21);
+				setPulsingMethod("SYNC");
+			} else if (frequency < 13) {
+				setPulseCount(15);
+				setPulsingMethod("SYNC");
+			} else if (frequency < 18) {
+				setPulseCount(11);
+				setPulsingMethod("SHE-PWM");
+			} else if (frequency < 25) {
+				setPulseCount(7);
+				setPulsingMethod("SHE-PWM");
+			} else if (frequency < 32) {
+				setPulseCount(5);
+				setPulsingMethod("SHE-PWM");
+			} else if (frequency < 45) {
+				setPulseCount(3);
+				setPulsingMethod("SHE-PWM");
+			} else {
+				setPulseCount(1);
+				setPulsingMethod("SYNC");
+			}
+
+			// Update text next to the sliders
+			frequencyElement.textContent = frequency;
+			carrierFrequencyElement.textContent = 300;
+			powerElement.textContent = Math.floor(power * 100);
+			pulsesElement.textContent = pulsePattern;
+			methodText.textContent = pulsingMethod;
+
+			renderVisualisations();
+
+			requestAnimationFrame(loop);
+		};
+
+		loop();
+	</script>
+</html>

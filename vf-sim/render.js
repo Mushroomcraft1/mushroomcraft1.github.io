@@ -13,12 +13,12 @@ let renderOptions = {
 	phase2Colour: "#ffff00",
 	phase3Colour: "#0000ff",
 	sampleRate: 10000,
-	samplesPerPixel: 10,
+	samplesPerPixel: 1,
 	maxPixels: 1920,
 	lineWidth: 1
 };
 
-const pulses = new Uint8Array(renderOptions.sampleRate / renderOptions.samplesPerPixel * renderOptions.maxPixels);
+const registerHistory = new Uint8Array(renderOptions.sampleRate / renderOptions.samplesPerPixel * renderOptions.maxPixels);
 
 /**
  * @param {HTMLCanvasElement} canvasElement 
@@ -51,7 +51,7 @@ function renderVisualisations() {
 	const sampleTimeMicroSec = 1000 * 1000 / renderOptions.sampleRate;
 
 	for (let i = 0; i < noOfSamples; ++i) {
-		pulses[i] = pulse(i * sampleTimeMicroSec);
+		registerHistory[i] = pulse(i * sampleTimeMicroSec);
 	}
 
 	let phase1Height = Math.floor(canvasHeight * renderOptions.phase1Position);
@@ -79,7 +79,7 @@ function renderVisualisations() {
 	visulisationCanvasCtx.moveTo(0, phase1Height);
 
 	for (let x = 0; x <= visulisationCanvas.width; x += increment) {
-		registerValues = pulses[p++] & (high1 | low1);
+		registerValues = registerHistory[p++] & (high1 | low1);
 		y = registerValues & high1 ? phase1top : registerValues & low1 ? phase1bottom : phase1Height;
 		
 		if (registerValues != prev) {
@@ -103,7 +103,7 @@ function renderVisualisations() {
 		visulisationCanvasCtx.moveTo(0, phase2Height);
 
 		for (let x = 0; x <= visulisationCanvas.width; x += increment) {
-			registerValues = pulses[p++] & (high2 | low2);
+			registerValues = registerHistory[p++] & (high2 | low2);
 			y = registerValues & high2 ? phase2top : registerValues & low2 ? phase2bottom : phase2Height;
 
 			if (registerValues != prev) {
@@ -125,7 +125,7 @@ function renderVisualisations() {
 		visulisationCanvasCtx.moveTo(0, phase3Height);
 
 		for (let x = 0; x <= visulisationCanvas.width; x += increment) {
-			registerValues = pulses[p++] & (high3 | low3);
+			registerValues = registerHistory[p++] & (high3 | low3);
 			y = registerValues & high3 ? phase3top : registerValues & low3 ? phase3bottom : phase3Height;
 
 			if (registerValues != prev) {
