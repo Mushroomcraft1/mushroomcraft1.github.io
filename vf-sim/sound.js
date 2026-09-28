@@ -1,5 +1,19 @@
 let soundStarted = false;
 
+let soundOptions = {
+	singlePhase: true
+}
+
+/**
+ * @param {Object}
+ */
+function setSoundOptions(newOptions) {
+	for (const key in newOptions) {
+		soundOptions[key] = newOptions[key]
+	}
+}
+
+
 /**
  * Counts the number of 1 bits in an integer
  * @param {Integer} x 
@@ -64,22 +78,34 @@ function startSound() {
 		let noOfLowBits = 0;
 
 		const nowBuffering = currentBuffer.getChannelData(0);
-		for (let i = 0; i < pulseData.length; ++i) {
-			registerValues = pulseData[i];
 
-			let newNoOfHighBits = popCount(registerValues & highMask);
-			let newNoOfLowBits = popCount(registerValues & lowMask);
+		if (soundOptions.singlePhase) {
+			for (let i = 0; i < pulseData.length; ++i) {
+				registerValues = pulseData[i];
 
-			currentPulse = newNoOfHighBits > 0 && newNoOfLowBits > 0 ? (newNoOfHighBits + newNoOfLowBits) * pulseHeight : 0;
+				currentPulse = registerValues & high1 ? pulseHeight : registerValues & low1 ? -pulseHeight : 0
 
-			if (currentPulse == 0 && currentPulse != prevPulse) sign *= -1;
+				nowBuffering[i] = currentPulse * sign;
 
-			nowBuffering[i] = currentPulse * sign;
+			}
+		} else {
+			for (let i = 0; i < pulseData.length; ++i) {
+				registerValues = pulseData[i];
 
-			noOfHighBits = newNoOfHighBits;
-			noOfHighBits = newNoOfLowBits;
-			
-			prevPulse = currentPulse;
+				let newNoOfHighBits = popCount(registerValues & highMask);
+				let newNoOfLowBits = popCount(registerValues & lowMask);
+
+				currentPulse = newNoOfHighBits > 0 && newNoOfLowBits > 0 ? (newNoOfHighBits + newNoOfLowBits) * pulseHeight : 0;
+
+				if (currentPulse == 0 && currentPulse != prevPulse) sign *= -1;
+
+				nowBuffering[i] = currentPulse * sign;
+
+				noOfHighBits = newNoOfHighBits;
+				noOfHighBits = newNoOfLowBits;
+				
+				prevPulse = currentPulse;
+			}
 		}
 	}, audioDuration);
 }

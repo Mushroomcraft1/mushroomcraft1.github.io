@@ -113,7 +113,7 @@ function pulse(microsec) {
         let mask1 = mask2 = mask3 = mask = 0;
 
         curTime = microsec % PWMfreqTimeInt;
-        milsec = floor(microsec / 1000) % sineFreqTimeInt;
+        milsec = microsec / 1000 % sineFreqTimeInt;
 
         const progress = (milsec / sineFreqTime);
 
