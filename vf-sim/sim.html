@@ -25,15 +25,30 @@
 				right: 0;
 				margin-right: 0.5rem;
 			}
+
+			.centre {
+				left: 30%;
+				margin-right: 0.5rem;
+			}
 		</style>
 	</head>
 	<body>
 		<div class="info">
-			<div><input type="range" min="1" max="100" step="1" id="sine-frequency"></input>Frequency:  <span id="sine-frequency-val"></span> Hz</div>
-			<div><input type="range" min="0" max="1" step="0.05" id="power"></input>Power:  <span id="power-val"></span> %</div>
-			<div><input type="range" min="0.01" max="1" step="0.01" id="time-warp"></input>Time Warp:  <span id="time-warp-val"></span>x</div>
-			<div><input type="range" min="0" max="1" step="0.1" id="movement"></input>Movement:  <span id="movement-val"></span> %</div>
+			<div><input type="range" min="0.1" max="100" step="0.1" id="sine-frequency"></input>Frequency:  <span id="sine-frequency-val"></span> Hz</div>
+			<div><input type="range" min="0" max="1" step="0.01" id="power"></input>Power:  <span id="power-val"></span> %</div>
 
+		</div>
+		<div class="info centre">
+			<div>Audio: <select id="audio">
+				<option value="24S">24kHz Single Phase</option>
+				<option value="48S">48kHz Single Phase</option>
+				<option value="96S">96kHz Single Phase</option>
+				<option value="24T">24kHz 3 Phase</option>
+				<option value="48T">48kHz 3 Phase</option>
+				<option value="96T">96kHz 3 Phase</option>
+			</select></div>
+			<div><input type="range" min="1" max="25" step="0.1" id="sample-rate"></input>Visual Sample Rate:  <span id="sample-rate-val"></span>kHz</div>
+			<div><input type="range" min="0.5" max="10" step="0.5" id="samples-per-pixel"></input>Samples Per Pixel:  <span id="samples-per-pixel-val"></span></div>
 		</div>
 		<div class="info right">
 			<div>Mode: <select id="method">
@@ -41,7 +56,7 @@
 				<option value="SYNC">Sync</option>
 				<option value="SHE-PWM">SHE-PWM</option>
 			</select></div>
-			<div><input type="range" min="50" max="1000" step="50" id="carrier-frequency"></input>Carrier Frequency:  <span id="carrier-frequency-val"></span> Hz</div>
+			<div><input type="range" min="50" max="1500" step="10" id="carrier-frequency"></input>Carrier Frequency:  <span id="carrier-frequency-val"></span> Hz</div>
 			<div><input type="range" min="1" max="25" step="2" id="pulses"></input>Pulses:  <span id="pulses-val"></span></div>
 		</div>
 		<canvas id="canvas">
@@ -60,25 +75,37 @@
 		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
 		const powerElement = document.getElementById("power-val");
 		const pulsesElement = document.getElementById("pulses-val");
-		const timeWarpElement = document.getElementById("time-warp-val");
-		const movementElement = document.getElementById("movement-val");
+		const sampleRateElement = document.getElementById("sample-rate-val");
+		const samplesPerPixelElement = document.getElementById("samples-per-pixel-val");
 
 		const frequencyValue = document.getElementById("sine-frequency");
 		const carrierFrequencyValue = document.getElementById("carrier-frequency");
 		const powerValue = document.getElementById("power");
 		const pulsesValue = document.getElementById("pulses");
-		const timeWarpValue = document.getElementById("time-warp");
-		const movementValue = document.getElementById("movement");
+		const sampleRateValue = document.getElementById("sample-rate");
+		const samplesPerPixelValue = document.getElementById("samples-per-pixel");
+		const audioOptionsValue = document.getElementById("audio");
 		const methodValue = document.getElementById("method");
 
 		// Default values for sliders
 		frequencyValue.value = 1;
 		carrierFrequencyValue.value = 300;
 		powerValue.value = 0.1;
-		timeWarpValue.value = 0.1;
-		movementValue.value = 0;
+		sampleRateValue.value = 10;
+		samplesPerPixelValue.value = 2;
 		pulsesValue.value = 21;
 		methodValue.value = "ASYNC";
+		audioOptionsValue.value = "48T";
+
+		audioOptionsValue.addEventListener("change", () => {
+			stopSound();
+			setSoundOptions({
+				sampleRate: parseInt(audioOptionsValue.value.slice(0, 2)) * 1000,
+				singlePhase: audioOptionsValue.value.endsWith("S")
+			});
+			console.log(soundOptions);
+			startSound();
+		})
 
 		setCanvas(canvas, ctx);
 		startSound();
@@ -100,8 +127,8 @@
 			setPulseCount(pulsesValue.value);
 
 			setRenderOptions({
-				timeScale: timeWarpValue.value * 1000,
-				movement: movementValue.value
+				sampleRate: sampleRateValue.value * 1000,
+				samplesPerPixel: samplesPerPixelValue.value
 			});
 
 			// Update text next to the sliders
@@ -109,8 +136,8 @@
 			carrierFrequencyElement.textContent = carrierFrequencyValue.value;
 			powerElement.textContent = Math.floor(powerValue.value * 100);
 			pulsesElement.textContent = pulsesValue.value;
-			timeWarpElement.textContent = timeWarpValue.value;
-			movementElement.textContent = Math.floor(movementValue.value * 100);
+			sampleRateElement.textContent = sampleRateValue.value;
+			samplesPerPixelElement.textContent = samplesPerPixelValue.value;
 
 			renderVisualisations();
 

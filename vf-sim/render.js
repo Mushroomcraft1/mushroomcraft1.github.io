@@ -12,10 +12,13 @@ let renderOptions = {
 	phase1Colour: "#ff0000",
 	phase2Colour: "#ffff00",
 	phase3Colour: "#0000ff",
-	movement: 0,
-	timeScale: 0.1,
+	sampleRate: 10000,
+	samplesPerPixel: 10,
+	maxPixels: 1920,
 	lineWidth: 1
 };
+
+const pulses = new Uint8Array(renderOptions.sampleRate / renderOptions.samplesPerPixel * renderOptions.maxPixels);
 
 /**
  * @param {HTMLCanvasElement} canvasElement 
@@ -43,6 +46,14 @@ function renderVisualisations() {
 
 	visulisationCanvasCtx.clearRect(0, 0, visulisationCanvas.width, visulisationCanvas.height);
 
+	const noOfSamples = Math.min(canvasWidth, renderOptions.maxPixels) * renderOptions.samplesPerPixel;
+	const increment = 1 / renderOptions.samplesPerPixel;
+	const sampleTimeMicroSec = 1000 * 1000 / renderOptions.sampleRate;
+
+	for (let i = 0; i < noOfSamples; ++i) {
+		pulses[i] = pulse(i * sampleTimeMicroSec);
+	}
+
 	let phase1Height = Math.floor(canvasHeight * renderOptions.phase1Position);
 	let phase2Height = Math.floor(canvasHeight * renderOptions.phase2Position);
 	let phase3Height = Math.floor(canvasHeight * renderOptions.phase3Position);
@@ -59,7 +70,7 @@ function renderVisualisations() {
 
 	let y = prevHeight = phase1Height;
 
-	let registerValues = prev = 0;
+	let p = registerValues = prev = 0;
 
 	visulisationCanvasCtx.beginPath();
 	visulisationCanvasCtx.lineWidth = renderOptions.lineWidth;
@@ -67,12 +78,15 @@ function renderVisualisations() {
 	visulisationCanvasCtx.strokeStyle = renderOptions.phase1Colour;
 	visulisationCanvasCtx.moveTo(0, phase1Height);
 
-	for (let i = 0; i <= visulisationCanvas.width; i += 1) {
-		registerValues = pulse((i + performance.now() * renderOptions.movement) * renderOptions.timeScale) & (high1 | low1);
+	for (let x = 0; x <= visulisationCanvas.width; x += increment) {
+		registerValues = pulses[p++] & (high1 | low1);
 		y = registerValues & high1 ? phase1top : registerValues & low1 ? phase1bottom : phase1Height;
 		
-		visulisationCanvasCtx.lineTo(i, prevHeight)
-		visulisationCanvasCtx.lineTo(i, y)
+		if (registerValues != prev) {
+			visulisationCanvasCtx.lineTo(x, prevHeight)
+			visulisationCanvasCtx.lineTo(x, y)
+		}
+		
 		prev = registerValues;
 		prevHeight = y;
 	}
@@ -81,17 +95,22 @@ function renderVisualisations() {
 	visulisationCanvasCtx.stroke();
 	visulisationCanvasCtx.strokeStyle = renderOptions.phase2Colour;
 
+
 	if (!renderOptions.renderSinglePhase) {
+		p = 0;
 		prevHeight = phase2Height;
 		visulisationCanvasCtx.beginPath();
 		visulisationCanvasCtx.moveTo(0, phase2Height);
 
-		for (let i = 0; i <= visulisationCanvas.width; i += 1) {
-			registerValues = pulse((i + performance.now() * renderOptions.movement) * renderOptions.timeScale) & (high2 | low2);
+		for (let x = 0; x <= visulisationCanvas.width; x += increment) {
+			registerValues = pulses[p++] & (high2 | low2);
 			y = registerValues & high2 ? phase2top : registerValues & low2 ? phase2bottom : phase2Height;
 
-			visulisationCanvasCtx.lineTo(i, prevHeight)
-			visulisationCanvasCtx.lineTo(i, y)
+			if (registerValues != prev) {
+				visulisationCanvasCtx.lineTo(x, prevHeight)
+				visulisationCanvasCtx.lineTo(x, y)
+			}
+
 			prev = registerValues;
 			prevHeight = y;
 		}
@@ -100,16 +119,20 @@ function renderVisualisations() {
 		visulisationCanvasCtx.stroke();
 		visulisationCanvasCtx.strokeStyle =  renderOptions.phase3Colour;
 
+		p = 0;
 		prevHeight = phase3Height;
 		visulisationCanvasCtx.beginPath();
 		visulisationCanvasCtx.moveTo(0, phase3Height);
 
-		for (let i = 0; i <= visulisationCanvas.width; i += 1) {
-			registerValues = pulse((i + performance.now() * renderOptions.movement) * renderOptions.timeScale) & (high3 | low3);
+		for (let x = 0; x <= visulisationCanvas.width; x += increment) {
+			registerValues = pulses[p++] & (high3 | low3);
 			y = registerValues & high3 ? phase3top : registerValues & low3 ? phase3bottom : phase3Height;
 
-			visulisationCanvasCtx.lineTo(i, prevHeight)
-			visulisationCanvasCtx.lineTo(i, y)
+			if (registerValues != prev) {
+				visulisationCanvasCtx.lineTo(x, prevHeight)
+				visulisationCanvasCtx.lineTo(x, y)
+			}
+
 			prev = registerValues;
 			prevHeight = y;
 		}

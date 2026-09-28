@@ -1,8 +1,11 @@
 let soundStarted = false;
 
 let soundOptions = {
-	singlePhase: true
-}
+	singlePhase: false,
+	sampleRate: 48000,
+	bufferDuration: 50,
+	waveAmplitude: 0.1 
+};
 
 /**
  * @param {Object}
@@ -33,33 +36,34 @@ let soundLoop;
 function startSound() {
 	if (soundStarted) throw "SoundSim already started";
 	soundStarted = true;
+	console.log("Started sound")
 
-	const audioDuration = 50;
-	const samplesPerMillisecond = 48;
+	const sampleRate = soundOptions.sampleRate;
+	const audioDuration = soundOptions.bufferDuration;
 	const audioCtx = new AudioContext();
-	audioCtx.sampleRate = 1000 * samplesPerMillisecond;
-	const samples = audioDuration * samplesPerMillisecond;
-	const buffer1 = audioCtx.createBuffer(1, samples, audioCtx.sampleRate);
-	const buffer2 = audioCtx.createBuffer(1, samples, audioCtx.sampleRate);
-	const pulseData = new Int8Array(samples);
-	const pulseHeight = 0.1;
+	audioCtx.sampleRate = sampleRate;
+	const samples = audioDuration * sampleRate / 1000;
+	const buffer1 = audioCtx.createBuffer(1, samples, sampleRate);
+	const buffer2 = audioCtx.createBuffer(1, samples, sampleRate);
+	const pulseData = new Uint8Array(samples);
 
 	let prevPulse = 0;
-
+	let startTime = audioCtx.currentTime;
 
 	let activeBuffer = 0;
 	let currentBuffer;
 
 	let startIdx = 0;
+	let prevSource;
 
 	soundLoop = setInterval(() => {
 		const source = audioCtx.createBufferSource();
 		source.buffer = currentBuffer;
 		source.connect(audioCtx.destination);
-		source.start();
+		source.start(startTime);
+		startTime = audioCtx.currentTime + buffer1.duration;
 
-		startTime = performance.now();
-
+		let pulseHeight = soundOptions.waveAmplitude;
 		let prev = 0;
 		let currentPulse = 0;
 		let sign = 1;
@@ -67,12 +71,11 @@ function startSound() {
 		currentBuffer = activeBuffer ? buffer1 : buffer2; 
 		activeBuffer = ~activeBuffer & 1;
 
+		const sampleIncrement = 1000 / (sampleRate / 1000);
 
 		for (let i = 0; i < pulseData.length; ++i) {
-			pulseData[i] = pulse(i / samplesPerMillisecond * 1000 + startIdx);
+			pulseData[i] = pulse(i * sampleIncrement + startIdx);
 		}
-
-		startIdx += pulseData.length;
 
 		let noOfHighBits = 0;
 		let noOfLowBits = 0;
@@ -107,6 +110,8 @@ function startSound() {
 				prevPulse = currentPulse;
 			}
 		}
+		nowBuffering[pulseData.length - 1] = 0;
+		prevSource = source;
 	}, audioDuration);
 }
 

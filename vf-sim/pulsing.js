@@ -106,92 +106,87 @@ function setPulsingMethod(newMethod) {
 }
 
 function pulse(microsec) {
-    if (sineFreq < 0.2 && sineFreq > -0.2) {
-        registers |= fullMask; // set all pins to off
-        delay(1);
+    let mask1 = mask2 = mask3 = mask = 0;
+
+    curTime = microsec % PWMfreqTimeInt;
+    milsec = microsec / 1000 % sineFreqTimeInt;
+
+    const progress = (milsec / sineFreqTime);
+
+    // Swap one of the phases to change direction
+    if (sineFreq > 0) {
+        Sine1 = sin(progress * tau);
+        Sine2 = sin(progress * tau - offset120deg);
+        Sine3 = sin(progress * tau - offset240deg);
     } else {
-        let mask1 = mask2 = mask3 = mask = 0;
-
-        curTime = microsec % PWMfreqTimeInt;
-        milsec = microsec / 1000 % sineFreqTimeInt;
-
-        const progress = (milsec / sineFreqTime);
-
-        // Swap one of the phases to change direction
-        if (sineFreq > 0) {
-            Sine1 = sin(progress * tau);
-            Sine2 = sin(progress * tau - offset120deg);
-            Sine3 = sin(progress * tau - offset240deg);
-        } else {
-            Sine1 = sin(progress * tau - offset120deg) ;
-            Sine2 = sin(progress * tau);
-            Sine3 = sin(progress * tau - offset240deg);
-        }
-
-        switch (method) { 
-            case "ASYNC": {
-                percentageTime1 = abs(Sine1 * power) * PWMfreqTime;
-                percentageTime2 = abs(Sine2 * power) * PWMfreqTime;
-                percentageTime3 = abs(Sine3 * power) * PWMfreqTime;
-
-                mask1 = (Sine1 > 0 ? high1 : low1);
-                mask2 = (Sine2 > 0 ? high2 : low2);
-                mask3 = (Sine3 > 0 ? high3 : low3);
-                
-                mask = ((curTime < percentageTime1) ? mask1 : 0)
-                     | ((curTime < percentageTime2) ? mask2 : 0)
-                     | ((curTime < percentageTime3) ? mask3 : 0);
-                break;
-            }
-            case "SYNC": {
-                const triangleSync = abs((noOfPulses * progress % 2) - 1);
-
-                pattern1 = Sine1 > 0 ? high1 : low1;
-                pattern2 = Sine2 > 0 ? high2 : low2;
-                pattern3 = Sine3 > 0 ? high3 : low3;
-
-                mask1 = abs(Sine1 * power) > triangleSync ? pattern1 : 0;
-                mask2 = abs(Sine2 * power) > triangleSync ? pattern2 : 0;
-                mask3 = abs(Sine3 * power) > triangleSync ? pattern3 : 0;
-
-                mask = mask1 | mask2 | mask3;
-                break;
-            }
-            case "SHE-PWM": {
-                currentSin1 = abs(Sine1);
-                currentSin2 = abs(Sine2);
-                currentSin3 = abs(Sine3);
-                
-                pattern1 = Sine1 > 0 ? high1 : low1;
-                pattern2 = Sine2 > 0 ? high2 : low2;
-                pattern3 = Sine3 > 0 ? high3 : low3;
-
-                for (let i = 0; i < pulsePattern; ++i) {
-                    if (pulseTimes[i] <= currentSin1) {
-                        mask1 = (i & 1) ? 0 : pattern1;
-                    }
-                }
-
-                for (let i = 0; i < pulsePattern; ++i) {
-                    if (pulseTimes[i] <= currentSin2) {
-                        mask2 = (i & 1) ? 0 : pattern2;
-                    }
-                }
-
-                for (let i = 0; i < pulsePattern; ++i) {
-                    if (pulseTimes[i] <= currentSin3) {
-                        mask3 = (i & 1) ? 0 : pattern3;
-                    }
-                }
-
-                mask = mask1 | mask2 | mask3;
-                break;
-            }
-        }
-        
-        registers = (~mask) & fullMask; // turn off reverse
-        registers = mask;
+        Sine1 = sin(progress * tau - offset120deg) ;
+        Sine2 = sin(progress * tau);
+        Sine3 = sin(progress * tau - offset240deg);
     }
+
+    switch (method) { 
+        case "ASYNC": {
+            percentageTime1 = abs(Sine1 * power) * PWMfreqTime;
+            percentageTime2 = abs(Sine2 * power) * PWMfreqTime;
+            percentageTime3 = abs(Sine3 * power) * PWMfreqTime;
+
+            mask1 = (Sine1 > 0 ? high1 : low1);
+            mask2 = (Sine2 > 0 ? high2 : low2);
+            mask3 = (Sine3 > 0 ? high3 : low3);
+            
+            mask = ((curTime < percentageTime1) ? mask1 : 0)
+                    | ((curTime < percentageTime2) ? mask2 : 0)
+                    | ((curTime < percentageTime3) ? mask3 : 0);
+            break;
+        }
+        case "SYNC": {
+            const triangleSync = abs((noOfPulses * progress % 2) - 1);
+
+            pattern1 = Sine1 > 0 ? high1 : low1;
+            pattern2 = Sine2 > 0 ? high2 : low2;
+            pattern3 = Sine3 > 0 ? high3 : low3;
+
+            mask1 = abs(Sine1 * power) > triangleSync ? pattern1 : 0;
+            mask2 = abs(Sine2 * power) > triangleSync ? pattern2 : 0;
+            mask3 = abs(Sine3 * power) > triangleSync ? pattern3 : 0;
+
+            mask = mask1 | mask2 | mask3;
+            break;
+        }
+        case "SHE-PWM": {
+            currentSin1 = abs(Sine1);
+            currentSin2 = abs(Sine2);
+            currentSin3 = abs(Sine3);
+            
+            pattern1 = Sine1 > 0 ? high1 : low1;
+            pattern2 = Sine2 > 0 ? high2 : low2;
+            pattern3 = Sine3 > 0 ? high3 : low3;
+
+            for (let i = 0; i < pulsePattern; ++i) {
+                if (pulseTimes[i] <= currentSin1) {
+                    mask1 = (i & 1) ? 0 : pattern1;
+                }
+            }
+
+            for (let i = 0; i < pulsePattern; ++i) {
+                if (pulseTimes[i] <= currentSin2) {
+                    mask2 = (i & 1) ? 0 : pattern2;
+                }
+            }
+
+            for (let i = 0; i < pulsePattern; ++i) {
+                if (pulseTimes[i] <= currentSin3) {
+                    mask3 = (i & 1) ? 0 : pattern3;
+                }
+            }
+
+            mask = mask1 | mask2 | mask3;
+            break;
+        }
+    }
+    
+    registers = (~mask) & fullMask; // turn off reverse
+    registers = mask;
 
 	return registers;
 }
