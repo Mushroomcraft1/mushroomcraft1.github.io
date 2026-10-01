@@ -108,7 +108,9 @@
 		})
 
 		setCanvas(canvas, ctx);
-		startSound();
+		let listener = window.addEventListener("pointerdown", () => { 
+			startSound();
+		});
 		
 		// Single phase visualisation that takes up most of the canvas
 		/*

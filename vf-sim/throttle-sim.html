@@ -43,6 +43,7 @@
 		<div class="info">
 			<div>Frequency:  <span id="sine-frequency-val"></span> Hz</div>
 			<div>Power:  <span id="power-val"></span> %</div>
+			<div>Speed:  <span id="speed-val"></span> km/h</div>
 		</div>
 		<div class="info centre">
 			<div>Audio: <select id="audio">
@@ -70,36 +71,15 @@
 	<script src="./pulsing.js"></script>
 	<script src="./render.js"></script>
 	<script src="./sound.js"></script>
+	<script src="./interface.js"></script>
 	<script>
 		const canvas = document.getElementById("canvas");
 		const ctx = canvas.getContext("2d");
 
+		window.addEventListener("pointerdown", () => { startSound(); })
+
 		const increaseButton = document.getElementById("increase");
 		const decreaseButton = document.getElementById("decrease");
-
-		// Sliders
-		const frequencyElement = document.getElementById("sine-frequency-val");
-		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
-		const powerElement = document.getElementById("power-val");
-		const pulsesElement = document.getElementById("pulses-val");
-
-		const audioOptionsValue = document.getElementById("audio");
-		const methodText = document.getElementById("method");
-
-		audioOptionsValue.value = "48T";
-
-		audioOptionsValue.addEventListener("change", () => {
-			stopSound();
-			setSoundOptions({
-				sampleRate: parseInt(audioOptionsValue.value.slice(0, 2)) * 1000,
-				singlePhase: audioOptionsValue.value.endsWith("S")
-			});
-			console.log(soundOptions);
-			startSound();
-		})
-
-		setCanvas(canvas, ctx);
-		startSound();
 
 		increaseButton.addEventListener("pointerdown", () => {
 			throttle = 0.3;
@@ -116,6 +96,35 @@
 		decreaseButton.addEventListener("pointerup", () => {
 			throttle = 0;
 		})
+
+		const frequencyElement = document.getElementById("sine-frequency-val");
+		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
+		const speedElement = document.getElementById("speed-val");
+		const powerElement = document.getElementById("power-val");
+		const pulsesElement = document.getElementById("pulses-val");
+
+		const audioOptionsValue = document.getElementById("audio");
+		const methodText = document.getElementById("method");
+
+		audioOptionsValue.value = "48T";
+
+		audioOptionsValue.addEventListener("change", () => {
+			stopSound();
+			setSoundOptions({
+				sampleRate: parseInt(audioOptionsValue.value.slice(0, 2)) * 1000,
+				singlePhase: audioOptionsValue.value.endsWith("S") 
+			});
+			console.log(soundOptions);
+			startSound();
+		})
+
+		setCanvas(canvas, ctx);
+
+		setupDatabase("./trains.json")
+			.then(() => {
+				setTrain("kiepe")
+				loop();
+			});
 		
 		// Single phase visualisation that takes up most of the canvas
 		setRenderOptions({
@@ -126,72 +135,46 @@
 			samplesPerPixel: 2
 		});
 
+		setSoundOptions({
+			waveAmplitude: 0.05
+		});
+
 		let frequency = 0;
 		let power = 0;
 		let throttle = 0;
-
-		setCarrierFrequency(300);
-
 		let prevFrame = 0;
 
 		function loop() {
 			const time = performance.now();
 			const delta = 1 / (time - prevFrame);
 			prevFrame = time;
-
+;
 			frequency += delta * throttle;
 			power = Math.abs(Math.min(1, frequency / 50));
-			if (Math.abs(frequency) < 0.2 || throttle < 0 && frequency < 5) power = 0;
+			if (Math.abs(frequency) < 0.2) power = 0;
 
-			setFrequency(frequency);
-			setPower(power);
+			commandVF(frequency, power);
 
-			// Asynchronous 300Hz (intersective)
-			// Synchronous 21P (intersective),
-			// 15P (intersective), 
-			// SHE11 (4 angle computed),
-			// SHE7 (3 angle computed),
-			// SHE5 (2 angle computed),
-			// SHE3 (1 angle computed),
-			// 1P (full wave)
+			const {
+				currentSpeed,
+				currentFrequency,
+				currentPower,
+				carrierFrequency,
+				pulses,
+				pulsingMode,
+			} = getVFData();
 
-			if (frequency < 7.2) {
-				setPulsingMethod("ASYNC");
-			} else if (frequency < 8.6) {
-				setPulseCount(21);
-				setPulsingMethod("SYNC");
-			} else if (frequency < 13) {
-				setPulseCount(15);
-				setPulsingMethod("SYNC");
-			} else if (frequency < 18) {
-				setPulseCount(11);
-				setPulsingMethod("SHE-PWM");
-			} else if (frequency < 25) {
-				setPulseCount(7);
-				setPulsingMethod("SHE-PWM");
-			} else if (frequency < 32) {
-				setPulseCount(5);
-				setPulsingMethod("SHE-PWM");
-			} else if (frequency < 45) {
-				setPulseCount(3);
-				setPulsingMethod("SHE-PWM");
-			} else {
-				setPulseCount(1);
-				setPulsingMethod("SYNC");
-			}
-
-			// Update text next to the sliders
-			frequencyElement.textContent = frequency;
-			carrierFrequencyElement.textContent = 300;
-			powerElement.textContent = Math.floor(power * 100);
-			pulsesElement.textContent = pulsePattern;
-			methodText.textContent = pulsingMethod;
+			// Update info text
+			frequencyElement.textContent = currentFrequency.toFixed(2);
+			speedElement.textContent = currentSpeed.toFixed(2);
+			carrierFrequencyElement.textContent = carrierFrequency;
+			powerElement.textContent = Math.floor(currentPower * 100);
+			pulsesElement.textContent = pulses;
+			methodText.textContent = pulsingMode;
 
 			renderVisualisations();
 
 			requestAnimationFrame(loop);
 		};
-
-		loop();
 	</script>
 </html>

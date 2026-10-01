@@ -8,8 +8,10 @@ let percentageTime1 = 0;
 let percentageTime2 = 0;
 let percentageTime3 = 0;
 
-let PWMfreq; 
-let sineFreq;
+let PWMfreq = 0; 
+let PWMfreqTime = 0;
+let PWMfreqTimeInt = 0;
+let sineFreq = 0;
 let pulsingPower;
 let sineFreqTime;
 let sineFreqTimeInt;

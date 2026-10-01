@@ -1,0 +1,91 @@
+{
+	"96": {
+		"wheel_diameter": 0.740,
+		"gear_ratio_motor_side": 13,
+		"gear_ratio_wheel_side": 2,
+		"motor_poles": 4,
+		"speed_per_motor_hz": 0.77,
+		"pulsing": [
+			{
+				"min_motor_frequency": 0,
+				"max_motor_frequency": 7.2,
+				"mode": "ASYNC",
+				"carrier_frequency": 300
+			},
+			{
+				"min_motor_frequency": 7.2,
+				"max_motor_frequency": 8.6,
+				"mode": "SYNC",
+				"pulses": 21
+			},
+			{
+				"min_motor_frequency": 8.6,
+				"max_motor_frequency": 13,
+				"mode": "SYNC",
+				"pulses": 15
+			},
+			{
+				"min_motor_frequency": 13,
+				"max_motor_frequency": 18,
+				"mode": "SHE-PWM",
+				"pulses": 11
+			},
+			{
+				"min_motor_frequency": 18,
+				"max_motor_frequency": 25,
+				"mode": "SHE-PWM",
+				"pulses": 7
+			},
+			{
+				"min_motor_frequency": 25,
+				"max_motor_frequency": 32,
+				"mode": "SHE-PWM",
+				"pulses": 5
+			},
+			{
+				"min_motor_frequency": 32,
+				"max_motor_frequency": 45,
+				"mode": "SHE-PWM",
+				"pulses": 3
+			},
+			{
+				"min_motor_frequency": 45,
+				"mode": "SYNC",
+				"pulses": 1
+			}
+		]
+	},
+	"kiepe": {
+		"wheel_diameter": 0.640,
+		"gear_ratio_motor_side": 7,
+		"gear_ratio_wheel_side": 2,
+		"speed_per_motor_hz": 0.59,
+		"pulsing": [
+			{
+				"min_speed": 0,
+				"mode": "ASYNC",
+				"carrier_frequency": 550
+			},
+			{
+				"min_speed": 9,
+				"mode": "SYNC",
+				"pulses": 21
+			},
+			{
+				"min_speed": 12,
+				"mode": "SYNC",
+				"pulses": 12
+			},
+			{
+				"min_speed": 18,
+				"mode": "SYNC",
+				"pulses": 9
+			},
+			{
+				"min_speed": 27,
+				"mode": "SYNC",
+				"pulses": 7
+			}
+		]
+	}
+}
