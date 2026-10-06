@@ -43,10 +43,14 @@ async function setupDatabase(trainConfigSource) {
 
 /**
  * 
- * @param {String} trainID - Unique name of the string used in the JSON DB 
+ * @param {String|Object} trainID - Unique name of the string used in the JSON DB 
  */
 function setTrain(trainID) {
-	currentTrainConfig = trainDB.get(trainID.toLowerCase());
+	if (typeof trainID == "string") {
+		currentTrainConfig = trainDB.get(trainID.toLowerCase());
+	} else {
+		currentTrainConfig = trainID;
+	}
 
 	let {
 		speed_per_motor_hz,
@@ -57,7 +61,7 @@ function setTrain(trainID) {
 		pulsing
 	} = currentTrainConfig;
 
-	if (speed_per_motor_hz == null) {
+	if (speed_per_motor_hz == null || speed_per_motor_hz < 0) {
 		if (wheel_diameter == null) throw "wheel_diameter required without speed_per_motor_hz"
 		if (gear_ratio_motor_side == null) throw "gear_ratio_motor_side required without speed_per_motor_hz"
 		if (gear_ratio_wheel_side == null) throw "gear_ratio_wheel_side required without speed_per_motor_hz"
@@ -72,22 +76,34 @@ function setTrain(trainID) {
 	let idx = 0;
 	for (const pulseConfig of pulsing) {
 		const { min_speed, max_speed, min_motor_frequency, max_motor_frequency, 
-			mode, pulses, carrier_frequency } = pulseConfig;
-		if (pulseConfig.min_speed == null && pulseConfig.min_motor_frequency == null) throw "No min speed given for pulsing at index " + idx
+			mode, pulses, carrier_frequency, min_carrier_frequency, max_carrier_frequency,
+			min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulseConfig;
+		if (min_speed == null && min_motor_frequency == null || min_motor_frequency < 0) throw "No min speed given for pulsing at index " + idx
 		if (min_motor_frequency == null) pulseConfig.min_motor_frequency = min_speed * speed_per_motor_hz;
-		if (max_speed != null && max_motor_frequency == null) pulseConfig.max_motor_frequency = max_speed * speed_per_motor_hz;
+		if (max_speed != null && max_motor_frequency == null ) pulseConfig.max_motor_frequency = max_speed * speed_per_motor_hz;
 		if (mode == null) throw "No pulsing mode given at index " + idx
 
 		switch (mode) {
 			case "SYNC":
 			case "SHE-PWM":
 			{
-				if (pulses == null) throw "Number of pulses not given for SYNC/SHE-PWM pulsing mode at index " + idx;
+				if (pulses == null) throw `"pulses" not given for SYNC/SHE-PWM pulsing mode at index ` + idx;
 				break;
 			}
 			case "ASYNC":
 			{
-				if (carrier_frequency == null) throw "Carrier frequency not given for ASYNC pulsing mode at index " + idx;
+				if (carrier_frequency == null) throw `"carrier_frequency" not given for ASYNC pulsing mode at index ` + idx;
+				break;
+			}
+			case "ASYNC-OSCILLATING":
+			case "ASYNC-SWEEP":
+			{
+				if (min_carrier_frequency == null || max_carrier_frequency == null) throw `"min_carrier_frequency" and "max_carrier_frequency" needed for Variable ASYNC pulsing mode at index ` + idx;
+				break;
+			}
+			case "AUTO-SYNC":
+			{				
+				if (min_pulses == null || max_pulses == null || pulse_step == null || max_switching_frequency == null) throw `"min_pulses", "max_pulses", "pulse_step" and "max_switching_frequency" needed for AUTO-SYNC pulsing mode at index ` + idx;
 				break;
 			}
 			default:
@@ -108,7 +124,7 @@ function setTrain(trainID) {
 		maxFrequency = pulsing[i].min_motor_frequency;
 	}
 
-	console.log("Loaded train " + trainID)
+	console.log("Loaded train " + (typeof trainID == "string" ? trainID : "from object"));
 }
 
 /**
@@ -124,11 +140,45 @@ function commandVF(frequency, power) {
 	const absFrequency = Math.abs(frequency);
 
 	for (const pulsing of currentTrainConfig.pulsing) {
-		if (absFrequency > pulsing.min_motor_frequency && frequency < pulsing.max_motor_frequency) {
-			if (pulsing.pulses != null) setPulseCount(pulsing.pulses);
-			if (pulsing.carrier_frequency != null) setCarrierFrequency(pulsing.carrier_frequency);
-			setPulsingMethod(pulsing.mode);
+		const { min_speed, max_speed, min_motor_frequency, max_motor_frequency, 
+			mode, pulses, carrier_frequency, min_carrier_frequency, max_carrier_frequency,
+			min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulsing;
+		if (absFrequency > min_motor_frequency && frequency < max_motor_frequency) {
+			switch (mode) {
+				case "SYNC":
+				case "SHE-PWM":
+					{
+						setPulseCount(pulses);
+						setPulsingMethod(mode);
+						break;
+					}
+				case "AUTO-SYNC":
+					{
+						let calculatedPulseCount = Math.floor(max_switching_frequency / (absFrequency * 2 * pulse_step)) * pulse_step;
+						if ((min_pulses & 1) && (pulse_step & 1) == 0) calculatedPulseCount -= 1;
+						setPulseCount(Math.max(min_pulses, Math.min(max_pulses, calculatedPulseCount)));
+						setPulsingMethod("SYNC");
+						break;
+					}
+				case "ASYNC":
+					{
+						setCarrierFrequency(carrier_frequency);
+						setPulsingMethod("ASYNC");
+						break;
+					}
+				case "ASYNC-SWEEP":
+					{
+						let calculatedCarrierFrequency = (absFrequency - min_motor_frequency)
+						  / (max_motor_frequency - min_motor_frequency)
+						  * (max_carrier_frequency - min_carrier_frequency)
+						  + min_carrier_frequency; 
+						setCarrierFrequency(Math.min(Math.max(min_carrier_frequency, calculatedCarrierFrequency), max_carrier_frequency));
+						setPulsingMethod("ASYNC");
+						break;
+					}
+			}
 			break;
+
 		}
 	}
 }

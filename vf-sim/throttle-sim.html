@@ -18,6 +18,10 @@
 				height: 25%;
 				bottom: 0;
 			}
+			
+			.thin {
+				width: 4rem;
+			}
 
 			.info {
 				position: absolute;
@@ -28,6 +32,11 @@
 				top: 50%;
 			}
 
+			.editor {
+				position: absolute;
+				top: 5rem;
+			}
+
 			.right {
 				right: 0;
 				margin-right: 0.5rem;
@@ -36,6 +45,43 @@
 			.centre {
 				left: 30%;
 				margin-right: 0.5rem;
+			}
+
+			.pulsing-element {
+				margin-top: 1rem;
+			}
+
+			.pulsing {
+				margin-top: 1rem;
+				max-height: calc(75vh - 15rem);
+				overflow-y: scroll;
+			}
+
+			button {
+				margin-right: 0.5rem
+			}
+
+			#json {
+				position: absolute;
+				top: 5vw;
+				left: 5vw;
+				width: 90vw;
+				height: calc(100vh - 10vw);
+				overflow-y: scroll;
+				background-color: #333a;
+				border-radius: 1vw;
+			}
+
+			.json-buttons {
+				position: absolute;
+				display: flex;
+				flex-direction: row;
+				left: 0;
+				bottom: calc(2.5vw - 1rem);
+				width: 100%;
+				height: 2rem;
+				overflow: hidden;
+				justify-content: center;
 			}
 		</style>
 	</head>
@@ -61,22 +107,37 @@
 			<div>Pulses:  <span id="pulses-val"></span></div>
 		</div>
 		<div class="throttle">
-			<button id="increase">Increase Throttle</button>
-			<button id="decrease">Decrease Throttle</button>
+			<button id="increase">Increase Throttle</button><button id="decrease">Decrease Throttle</button>
+		</div>
+		<div class="editor right">
+			<button id="new">New Train</button><button id="save">Save Train</button>
+			<br><br>
+			<div id="train-config">
+				
+			</div>
 		</div>
 		<canvas id="canvas">
 			
 		</canvas>
+		<textarea id="json" hidden="true"></textarea>
 	</body>
 	<script src="./pulsing.js"></script>
 	<script src="./render.js"></script>
 	<script src="./sound.js"></script>
 	<script src="./interface.js"></script>
 	<script>
+		let currentTrain = {};
+		let trainName = "";
+
 		const canvas = document.getElementById("canvas");
 		const ctx = canvas.getContext("2d");
 
-		window.addEventListener("pointerdown", () => { startSound(); })
+		function clickFunction() { 
+			startSound();
+			window.removeEventListener("pointerdown", clickFunction); 
+		}
+
+		window.addEventListener("pointerdown", clickFunction);
 
 		const increaseButton = document.getElementById("increase");
 		const decreaseButton = document.getElementById("decrease");
@@ -96,6 +157,264 @@
 		decreaseButton.addEventListener("pointerup", () => {
 			throttle = 0;
 		})
+
+		function createElement(elementType, properties, classes) {
+			const element = Object.assign(document.createElement(elementType), properties);
+			if (classes != null) element.classList.add(...classes);
+			return element;
+		}
+
+		function createInput(content, element) {
+			const label = document.createElement("div");
+			label.appendChild(document.createTextNode(content));
+			label.appendChild(element);
+			return label;
+		}
+
+		function loadTrainToSim() {
+			setTrain(structuredClone(currentTrain));
+		}
+
+		function loadEditor(name, trainConfig) {
+			trainName = name;
+			currentTrain = trainConfig;
+			let pulsingIdx = 0;
+			const indicies = [];
+
+			const editor = document.getElementById("train-config");
+			editor.children = [];
+
+			const nameValue = createElement("input", {
+				type: "text", value: trainName
+			});
+			nameValue.addEventListener("change", () => {
+				trainName = nameValue.value;
+			});
+
+			const wheelDiameter = createElement("input", {
+				type: "number", value: currentTrain.wheel_diameter, step: 0.01, min: 0.1 
+			}, ["thin"]);
+			wheelDiameter.addEventListener("change", () => {
+				currentTrain.wheel_diameter = wheelDiameter.value;
+				loadTrainToSim();
+			});
+			
+			const gearRatio = createElement("span");
+			const gearRatioMotorSide = createElement("input", {
+				type: "number", value: currentTrain.gear_ratio_motor_side, step: 1, min: 0.1 
+			}, ["thin"]);
+			gearRatioMotorSide.addEventListener("change", () => {
+				currentTrain.gear_ratio_motor_side = gearRatioMotorSide.value;
+				loadTrainToSim();
+			});
+			const gearRatioWheelSide = createElement("input", {
+				type: "number", value: currentTrain.gear_ratio_wheel_side, step: 1, min: 0.1 
+			}, ["thin"]);
+			gearRatioWheelSide.addEventListener("change", () => {
+				currentTrain.gear_ratio_wheel_side = gearRatioWheelSide.value;
+				loadTrainToSim();
+			});
+			gearRatio.append(gearRatioMotorSide, document.createTextNode(" : "), gearRatioWheelSide);
+			const speedPerMotorHz = createElement("input", {
+				type: "number", value: currentTrain.speed_per_motor_hz, step: 0.01, min: -1 
+			}, ["thin"]);
+			speedPerMotorHz.addEventListener("change", () => {
+				currentTrain.speed_per_motor_hz = speedPerMotorHz.value;
+				if (speedPerMotorHz.value < 0) delete currentTrain.speed_per_motor_hz;
+				loadTrainToSim();
+			});
+
+			function addPulsingMode(idx) {
+				if (typeof idx != "number") idx = indicies.length;
+				const ID = pulsingIdx++;
+				if (idx < indicies.length) {
+					indicies.splice(idx, 0, ID);
+				} else {
+					indicies.push(ID);
+				}
+				let pulsingMode = currentTrain.pulsing[idx] ?? { };
+				const newPulsingMode = createElement("div", {}, ["pulsing-element"]);
+				const modes = createElement("select");
+				for (const mode of ["ASYNC", "ASYNC-OSCILLATING", "ASYNC-SWEEP", "SYNC", "AUTO-SYNC", "SHE-PWM"]) {
+					modes.appendChild(createElement("option", {
+						textContent: mode,
+						value: mode
+					}));
+				}
+				function updateValue(event) {
+					const element = event.srcElement;
+					const key = element["data-value"];
+					pulsingMode[key] = Number(element.value);
+					if (pulsingMode[key] < 0) delete pulsingMode[key];
+					currentTrain.pulsing[idx] = pulsingMode;
+					loadTrainToSim();
+				}
+				const variables = [
+					createElement("input", { "data-value": "min_speed", type: "number", value: 0, step: 0.1, min: 0 }, ["thin"]),
+					createElement("input", { "data-value": "max_speed", type: "number", value: 0, step: 0.1, min: -1 }, ["thin"]),
+					createElement("input", { "data-value": "min_motor_frequency", type: "number", value: -1, step: 0.1, min: -1 }, ["thin"]),
+					createElement("input", { "data-value": "max_motor_frequency", type: "number", value: -1, step: 0.1, min: -1 }, ["thin"]),
+					createElement("input", { "data-value": "carrier_frequency", type: "number", value: 400, step: 10, min: 50 }, ["thin"]),
+					createElement("input", { "data-value": "min_carrier_frequency", type: "number", value: 400, step: 10, min: 50 }, ["thin"]),
+					createElement("input", { "data-value": "max_carrier_frequency", type: "number", value: 500, step: 10, min: 50 }, ["thin"]),
+					createElement("input", { "data-value": "pulses", type: "number", value: 21, step: 1, min: 1 }, ["thin"]),
+					createElement("input", { "data-value": "min_pulses", type: "number", value: 1, step: 1, min: 1 }, ["thin"]),
+					createElement("input", { "data-value": "max_pulses", type: "number", value: 21, step: 1, min: 1 }, ["thin"]),
+					createElement("input", { "data-value": "pulse_step", type: "number", value: 2, step: 1, min: 1 }, ["thin"]),
+					createElement("input", { "data-value": "max_switching_frequency", type: "number", value: 400, step: 10, min: 50 }, ["thin"]),
+				];
+				function updateVisibilities(visible) {
+					let i = 0;
+					for (const element of variables) {
+						element.parentElement.hidden = !visible[i];
+						if (visible[i]) {
+							element.dispatchEvent(new Event("change"));
+						}
+						++i;
+					}
+				}
+				modes.addEventListener("change", () => {
+					pulsingMode.mode = modes.value;
+					switch (modes.value) {
+						case "ASYNC":
+							{
+								updateVisibilities([true, true, true, true, true, false, false, false, false, false, false, false]);
+								break;
+							}
+						case "ASYNC-OSCILLATING":
+							{
+								updateVisibilities([true, true, true, true, false, true, true, false, false, false, false, false]);
+								break;
+							}
+						case "ASYNC-SWEEP":
+							{
+								updateVisibilities([true, true, true, true, false, true, true, false, false, false, false, false]);
+								break;
+							}
+						case "AUTO-SYNC":
+							{
+								updateVisibilities([true, true, true, true, false, false, false, false, true, true, true, true]);
+								break;
+							}
+						case "SYNC":
+							{
+								updateVisibilities([true, true, true, true, false, false, false, true, false, false, false, false]);
+								break;
+							}
+						case "SHE-PWM":
+							{
+								updateVisibilities([true, true, true, true, false, false, false, true, false, false, false, false]);
+								break;
+							}
+					}
+					currentTrain.pulsing[idx] = pulsingMode;
+					loadTrainToSim();
+				});
+				newPulsingMode.appendChild(
+					createInput("Mode: ", modes),
+				);
+				const texts = [
+					"Min Speed (km/h): ",
+					"Max Speed (km/h): ",
+					"Min Motor Frequency (Hz, -1 = N/A): ",
+					"Max Motor Frequency (Hz, -1 = N/A): ",
+					"Carrier Frequency (Hz): ",
+					"Min Carrier Frequency (Hz): ",
+					"Max Carrier Frequency (Hz): ",
+					"Pulses: ",
+					"Min Pulses: ",
+					"Max Pulses: ",
+					"Pulse Step: ",
+					"Max Switching Frequency: "
+				];
+				for (const element of variables) {
+					const key = element["data-value"];
+					if (pulsingMode[key] != null) element.value = pulsingMode[key];
+					element.addEventListener("change", updateValue);
+					newPulsingMode.appendChild(createInput(texts.shift(), element));
+				}
+				const deleteMode = createElement("button", {
+					textContent: "Delete"
+				});
+				const insertMode = createElement("button", {
+					textContent: "Insert Before"
+				});
+				deleteMode.addEventListener("click", () => {
+					pulsing.removeChild(newPulsingMode);
+				});
+				insertMode.addEventListener("click", () => {
+					addPulsingMode(idx);
+				});
+				newPulsingMode.append(deleteMode, insertMode);
+				pulsing.appendChild(newPulsingMode);
+				if (idx < indicies.length) {
+					pulsing.moveBefore(newPulsingMode, pulsing.children[idx]);
+				}
+				modes.value = pulsingMode.mode ?? "ASYNC";
+				modes.dispatchEvent(new Event("change"));
+				currentTrain.pulsing[idx] = pulsingMode;
+			}
+
+			const pulsing = createElement("div", {}, ["pulsing"]);
+			const addPulsing = createElement("button", { textContent: "Add Pulsing" });
+			addPulsing.addEventListener("click", addPulsingMode);
+
+			for (let i = 0; i < currentTrain.pulsing.length; ++i) addPulsingMode(i);
+
+			editor.replaceChildren(
+				createInput("Name: ", nameValue),
+				createInput("Wheel Diameter (m): ", wheelDiameter),
+				createInput("Gear Ratio: ", gearRatio),
+				createInput("Speed Per Motor Hz (-1 = N/A): ", speedPerMotorHz),
+				createInput("Pulsing: ", addPulsing),
+				pulsing
+			);
+			loadTrainToSim();
+		}
+
+		document.getElementById("new").addEventListener("click", () => {
+			trainName = "New Train";
+			loadEditor("New Train", {
+				wheel_diameter: 0.84,
+				gear_ratio_motor_side: 6,
+				gear_ratio_wheel_side: 1,
+				speed_per_motor_hz: -1,
+				pulsing: [
+					{
+						mode: "ASYNC",
+						carrier_frequency: 1500,
+						min_speed: 0,
+						max_speed: 200
+					}
+				]
+			});
+		});
+
+		const displayArea = document.getElementById("json");
+
+		document.getElementById("save").addEventListener("click", () => {
+			console.log("Saving " + trainName);
+			console.log(currentTrain);
+			const trainSave = {};
+			trainSave[trainName.toLowerCase().replaceAll(",", "-")] = currentTrain;
+			displayArea.hidden = false;
+			displayArea.textContent = JSON.stringify(
+				trainSave,
+				null, "\t"
+			);
+			const buttons = createElement("div", {}, ["json-buttons"]);
+			const closeButton = createElement("button", { textContent: "Close" });
+			const copyButton = createElement("button", { textContent: "Copy" });
+			buttons.append(copyButton, closeButton);
+			document.body.appendChild(buttons);
+			closeButton.addEventListener("click", () => {
+				displayArea.hidden = true;
+				buttons.remove();
+			});
+			copyButton.addEventListener("click", () => {
+				navigator.clipboard.writeText(displayArea.textContent);
+			});
+		});
 
 		const frequencyElement = document.getElementById("sine-frequency-val");
 		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
@@ -123,6 +442,7 @@
 		setupDatabase("./trains.json")
 			.then(() => {
 				setTrain("kiepe")
+				loadEditor("Kiepe", getTrainData());
 				loop();
 			});
 		
@@ -148,7 +468,6 @@
 			const time = performance.now();
 			const delta = 1 / (time - prevFrame);
 			prevFrame = time;
-;
 			frequency += delta * throttle;
 			power = Math.abs(Math.min(1, frequency / 50));
 			if (Math.abs(frequency) < 0.2) power = 0;
@@ -167,7 +486,7 @@
 			// Update info text
 			frequencyElement.textContent = currentFrequency.toFixed(2);
 			speedElement.textContent = currentSpeed.toFixed(2);
-			carrierFrequencyElement.textContent = carrierFrequency;
+			carrierFrequencyElement.textContent = Math.round(carrierFrequency);
 			powerElement.textContent = Math.floor(currentPower * 100);
 			pulsesElement.textContent = pulses;
 			methodText.textContent = pulsingMode;
