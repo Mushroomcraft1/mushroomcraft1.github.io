@@ -197,3 +197,7 @@ function getVFData() {
 function getTrainData() {
 	return currentTrainConfig;
 }
+
+function getAvailableTrains() {
+	return Array.from(trainDB.keys());
+}

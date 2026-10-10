@@ -47,11 +47,6 @@
 				"max_motor_frequency": 45,
 				"mode": "SHE-PWM",
 				"pulses": 3
-			},
-			{
-				"min_motor_frequency": 45,
-				"mode": "SYNC",
-				"pulses": 1
 			}
 		]
 	},
@@ -85,6 +80,204 @@
 				"min_speed": 27,
 				"mode": "SYNC",
 				"pulses": 7
+			}
+		]
+	},
+	"new train": {
+		"wheel_diameter": 0.84,
+		"gear_ratio_motor_side": 6,
+		"gear_ratio_wheel_side": 1,
+		"speed_per_motor_hz": -1,
+		"pulsing": [
+			{
+				"mode": "ASYNC",
+				"carrier_frequency": 550,
+				"min_speed": 0,
+				"max_speed": 5
+			},
+			{
+				"mode": "ASYNC-SWEEP",
+				"min_speed": 5,
+				"max_speed": 10,
+				"carrier_frequency": 400,
+				"min_carrier_frequency": 550,
+				"max_carrier_frequency": 1100
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 10,
+				"max_speed": 20,
+				"carrier_frequency": 1100
+			},
+			{
+				"mode": "AUTO-SYNC",
+				"min_speed": 21,
+				"max_speed": 200,
+				"carrier_frequency": 400,
+				"min_pulses": 1,
+				"max_pulses": 211,
+				"pulse_step": 2,
+				"max_switching_frequency": 550
+			}
+		]
+	},
+	"taurus": {
+		"wheel_diameter": 0.84,
+		"gear_ratio_motor_side": 6,
+		"gear_ratio_wheel_side": 1,
+		"speed_per_motor_hz": -1,
+		"pulsing": [
+			{
+				"mode": "ASYNC",
+				"carrier_frequency": 73.42,
+				"min_speed": 0,
+				"max_speed": 200,
+				"min_motor_frequency": 0,
+				"max_motor_frequency": 1
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 82.41,
+				"min_motor_frequency": 1,
+				"max_motor_frequency": 1.5
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 87.31,
+				"min_motor_frequency": 1.5,
+				"max_motor_frequency": 2
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 98,
+				"min_motor_frequency": 2,
+				"max_motor_frequency": 2.5
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 110,
+				"min_motor_frequency": 2.5,
+				"max_motor_frequency": 3
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 123.47,
+				"min_motor_frequency": 3,
+				"max_motor_frequency": 3.5
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 130.81,
+				"min_motor_frequency": 3.5,
+				"max_motor_frequency": 4
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 146.83,
+				"min_motor_frequency": 4,
+				"max_motor_frequency": 4.5
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 164.81,
+				"min_motor_frequency": 4.5,
+				"max_motor_frequency": 5
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 174.61,
+				"min_motor_frequency": 5,
+				"max_motor_frequency": 5.5
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 196,
+				"min_motor_frequency": 5.5,
+				"max_motor_frequency": 6
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 220,
+				"min_motor_frequency": 6,
+				"max_motor_frequency": 6.5
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 246.94,
+				"min_motor_frequency": 6.5,
+				"max_motor_frequency": 7
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 261.63,
+				"min_motor_frequency": 7,
+				"max_motor_frequency": 7.5
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 293.66,
+				"min_motor_frequency": 7.5,
+				"max_motor_frequency": 8
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"carrier_frequency": 300,
+				"min_motor_frequency": 8,
+				"max_motor_frequency": 15
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"pulses": 9,
+				"min_motor_frequency": 15,
+				"max_motor_frequency": 25
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"pulses": 7,
+				"min_motor_frequency": 25,
+				"max_motor_frequency": 35
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 0,
+				"max_speed": 0,
+				"pulses": 5,
+				"min_motor_frequency": 35,
+				"max_motor_frequency": 50
 			}
 		]
 	}

@@ -53,7 +53,7 @@
 
 			.pulsing {
 				margin-top: 1rem;
-				max-height: calc(75vh - 15rem);
+				max-height: calc(75vh - 17rem);
 				overflow-y: scroll;
 			}
 
@@ -107,10 +107,12 @@
 			<div>Pulses:  <span id="pulses-val"></span></div>
 		</div>
 		<div class="throttle">
-			<button id="increase">Increase Throttle</button><button id="decrease">Decrease Throttle</button>
+			<button id="increase">Increase Throttle</button><button id="decrease">Decrease Throttle</button><button id="reset">Reset Throttle</button>
 		</div>
 		<div class="editor right">
-			<button id="new">New Train</button><button id="save">Save Train</button>
+			<button id="new">New Train</button><button id="save">Save Train</button><select id="load">
+
+			</select>
 			<br><br>
 			<div id="train-config">
 				
@@ -133,14 +135,17 @@
 		const ctx = canvas.getContext("2d");
 
 		function clickFunction() { 
-			startSound();
-			window.removeEventListener("pointerdown", clickFunction); 
+			setTimeout(() => {
+				startSound();
+				window.removeEventListener("pointerdown", clickFunction); 
+			}, 100);
 		}
 
 		window.addEventListener("pointerdown", clickFunction);
 
 		const increaseButton = document.getElementById("increase");
 		const decreaseButton = document.getElementById("decrease");
+		const resetButton = document.getElementById("reset");
 
 		increaseButton.addEventListener("pointerdown", () => {
 			throttle = 0.3;
@@ -155,6 +160,12 @@
 		})
 
 		decreaseButton.addEventListener("pointerup", () => {
+			throttle = 0;
+		})
+
+		resetButton.addEventListener("pointerdown", () => {
+			frequency = 0;
+			power = 0;
 			throttle = 0;
 		})
 
@@ -439,10 +450,25 @@
 
 		setCanvas(canvas, ctx);
 
+		const loadTrain = document.getElementById("load");
+		loadTrain.addEventListener("change", () => {
+			setTrain(loadTrain.value);
+			loadEditor(loadTrain.value, getTrainData());
+		})
+
 		setupDatabase("./trains.json")
 			.then(() => {
-				setTrain("kiepe")
-				loadEditor("Kiepe", getTrainData());
+				const trains = getAvailableTrains();
+				loadTrain.replaceChildren();
+				for (const train of trains) {
+					loadTrain.appendChild(createElement("option", {
+						value: train,
+						textContent: train
+					}));
+				}
+				loadTrain.value = trains[0];
+				console.log(trains)
+				loadTrain.dispatchEvent(new Event("change"));
 				loop();
 			});
 		

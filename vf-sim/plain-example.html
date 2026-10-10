@@ -1,0 +1,93 @@
+<html theme="dark">
+	<head>
+		<style>
+			:root {
+				color-scheme: dark;
+			}
+
+			body, html {
+				margin: none;
+				padding: none;
+				background-color: black;
+				color: yellow;
+				font: 1rem "Fira Sans", sans-serif;
+			}
+		</style>
+	</head>
+	<body>
+		Your website here<br><br>
+		Click to hear sound
+	</body>
+	<script src="https://mushroomcraft1.github.io/vf-sim/pulsing.js"></script>
+	<!-- <script src="./render.js"></script> Not needed -->
+	<script src="https://mushroomcraft1.github.io/vf-sim/sound.js"></script>
+	<script src="https://mushroomcraft1.github.io/vf-sim/interface.js"></script>
+	<script>
+		// Web browser doesn't let you play sound until the document has been interacted with
+		function clickFunction() { 
+			setTimeout(() => {
+				startSound();
+				window.removeEventListener("pointerup", clickFunction); 
+			}, 100);
+		}
+
+		window.addEventListener("pointerup", clickFunction);
+
+		// Load the database. Can be from a URL, or can just paste the object directly
+		// setupDatabase("https://mushroomcraft1.github.io/vf-sim/trains.json")
+		setupDatabase({ 
+			"new train": {
+				"wheel_diameter": 0.84,
+				"gear_ratio_motor_side": 6,
+				"gear_ratio_wheel_side": 1,
+				"speed_per_motor_hz": -1,
+				"pulsing": [
+					{
+						"mode": "ASYNC",
+						"carrier_frequency": 400,
+						"min_speed": 0,
+						"max_speed": 20
+					},
+					{
+						"mode": "AUTO-SYNC",
+						"min_speed": 20,
+						"max_speed": 200,
+						"carrier_frequency": 400,
+						"min_pulses": 5,
+						"max_pulses": 41,
+						"pulse_step": 2,
+						"max_switching_frequency": 400
+					}
+				]
+			}})
+			// Async function because it can require fetching a JSON file from the internet
+			.then(() => {
+				setTrain("new train");
+				loop();
+			});
+
+		// waveAmplitude is your "volume"
+		setSoundOptions({
+			waveAmplitude: 0.05
+		});
+
+		let frequency = 0;
+		let power = 0;
+		let throttle = 0;
+		let prevFrame = 0;
+
+		function loop() {
+			const time = performance.now();
+			const delta = 1 / (time - prevFrame);
+			prevFrame = time;
+			frequency += delta * throttle;
+			power = Math.abs(Math.min(1, frequency / 50));
+
+			if (frequency >= 50) throttle = -0.3;
+			if (frequency <= 0) throttle = 0.3;
+			commandVF(frequency, power);
+
+			requestAnimationFrame(loop);
+		};
+	</script>
+</html>
