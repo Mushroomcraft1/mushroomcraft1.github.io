@@ -78,6 +78,9 @@ async function startSound() {
 			pulseData[i] = pulse(i * sampleIncrement + startIdx);
 		}
 
+		startIdx += pulseData.length * sampleIncrement;
+		startIdx %= sampleRate * 10;
+
 		let noOfHighBits = 0;
 		let noOfLowBits = 0;
 

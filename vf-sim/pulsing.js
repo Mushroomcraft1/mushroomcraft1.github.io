@@ -1,5 +1,6 @@
 // "ASYNC", "SYNC", "SHE-PWM"
 let pulsingMethod;
+let oscillationFunction;
 
 let Sine1 = 0;
 let Sine2 = 0;
@@ -102,6 +103,14 @@ function setCarrierFrequency(newFrequency) {
 }
 
 /**
+ * Sets the oscillation function in Async mode
+ * @param {Float} newFrequency 
+ */
+function setOscillationFunction(newFunction) {
+    oscillationFunction = newFunction;
+}
+
+/**
   * @param {String} newMethod - "ASYNC", "SYNC", "SHE-PWM"
 */
 function setPulsingMethod(newMethod) {
@@ -129,6 +138,8 @@ function pulse(microsec) {
 
     switch (pulsingMethod) { 
         case "ASYNC": {
+            if (oscillationFunction != null) setCarrierFrequency(oscillationFunction(microsec));
+
             percentageTime1 = abs(Sine1 * pulsingPower) * PWMfreqTime;
             percentageTime2 = abs(Sine2 * pulsingPower) * PWMfreqTime;
             percentageTime3 = abs(Sine3 * pulsingPower) * PWMfreqTime;

@@ -61,10 +61,22 @@ function setTrain(trainID) {
 		pulsing
 	} = currentTrainConfig;
 
+	let idx = -1;
+
+	function checkNull(...variables) {
+		if (idx < 0) {
+			for (const variable of variables) {
+				if (currentTrainConfig[variable] == null) throw `"${variable}" not given for train config`; 
+			}
+		} else {
+			for (const variable of variables) {
+				if (currentTrainConfig.pulsing[idx][variable] == null) throw `"${variable}" not given for pulsing mode at index ${idx}`; 
+			}
+		}
+	}
+
 	if (speed_per_motor_hz == null || speed_per_motor_hz < 0) {
-		if (wheel_diameter == null) throw "wheel_diameter required without speed_per_motor_hz"
-		if (gear_ratio_motor_side == null) throw "gear_ratio_motor_side required without speed_per_motor_hz"
-		if (gear_ratio_wheel_side == null) throw "gear_ratio_wheel_side required without speed_per_motor_hz"
+		checkNull("wheel_diameter", "gear_ratio_motor_side", "gear_ratio_wheel_side");
 		speed_per_motor_hz = (3.6 * Math.PI * wheel_diameter) 
 			/ ((motor_poles ?? 4) * (gear_ratio_motor_side / gear_ratio_wheel_side))
 	}
@@ -73,37 +85,43 @@ function setTrain(trainID) {
 
 	if (pulsing == null) throw "No pulsing configured for " + trainID
 
-	let idx = 0;
 	for (const pulseConfig of pulsing) {
-		const { min_speed, max_speed, min_motor_frequency, max_motor_frequency, 
-			mode, pulses, carrier_frequency, min_carrier_frequency, max_carrier_frequency,
-			min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulseConfig;
-		if (min_speed == null && min_motor_frequency == null || min_motor_frequency < 0) throw "No min speed given for pulsing at index " + idx
+		++idx;
+		if (pulseConfig == null) throw `Pulsing config at idx ${idx} is null`
+		const { min_speed, max_speed, min_motor_frequency, max_motor_frequency, mode } = pulseConfig;
+		if (min_speed == null) checkNull("min_motor_frequency"); else checkNull("min_speed");
 		if (min_motor_frequency == null) pulseConfig.min_motor_frequency = min_speed * speed_per_motor_hz;
 		if (max_speed != null && max_motor_frequency == null ) pulseConfig.max_motor_frequency = max_speed * speed_per_motor_hz;
-		if (mode == null) throw "No pulsing mode given at index " + idx
-
+		checkNull("mode");
 		switch (mode) {
 			case "SYNC":
 			case "SHE-PWM":
 			{
-				if (pulses == null) throw `"pulses" not given for SYNC/SHE-PWM pulsing mode at index ` + idx;
+				checkNull("pulses");
 				break;
 			}
 			case "ASYNC":
 			{
-				if (carrier_frequency == null) throw `"carrier_frequency" not given for ASYNC pulsing mode at index ` + idx;
+				checkNull("carrier_frequency");
+				break;
+			}
+			case "ASYNC-STEP":
+			{
+				checkNull("carrier_frequencies");
 				break;
 			}
 			case "ASYNC-OSCILLATING":
+			{
+				checkNull("oscillation_mode", "oscillation_frequency");
+			}
 			case "ASYNC-SWEEP":
 			{
-				if (min_carrier_frequency == null || max_carrier_frequency == null) throw `"min_carrier_frequency" and "max_carrier_frequency" needed for Variable ASYNC pulsing mode at index ` + idx;
+				checkNull("min_carrier_frequency", "max_carrier_frequency");
 				break;
 			}
 			case "AUTO-SYNC":
-			{				
-				if (min_pulses == null || max_pulses == null || pulse_step == null || max_switching_frequency == null) throw `"min_pulses", "max_pulses", "pulse_step" and "max_switching_frequency" needed for AUTO-SYNC pulsing mode at index ` + idx;
+			{		
+				checkNull("min_pulses", "max_pulses", "pulse_step", "max_switching_frequency")		
 				break;
 			}
 			default:
@@ -113,7 +131,6 @@ function setTrain(trainID) {
 		}
 
 		pulsing[idx] = pulseConfig;
-		++idx;
 	}
 
 	pulsing.sort((a, b) => a.min_motor_frequency - b.min_motor_frequency);
@@ -140,9 +157,9 @@ function commandVF(frequency, power) {
 	const absFrequency = Math.abs(frequency);
 
 	for (const pulsing of currentTrainConfig.pulsing) {
-		const { min_speed, max_speed, min_motor_frequency, max_motor_frequency, 
-			mode, pulses, carrier_frequency, min_carrier_frequency, max_carrier_frequency,
-			min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulsing;
+		const { min_motor_frequency, max_motor_frequency, oscillation_mode, oscillation_frequency,
+			mode, pulses, carrier_frequency, carrier_frequencies, min_carrier_frequency,
+			max_carrier_frequency, min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulsing;
 		if (absFrequency > min_motor_frequency && frequency < max_motor_frequency) {
 			switch (mode) {
 				case "SYNC":
@@ -160,9 +177,61 @@ function commandVF(frequency, power) {
 						setPulsingMethod("SYNC");
 						break;
 					}
+				case "ASYNC-STEP":
+					{
+						let idx = (absFrequency - min_motor_frequency)
+						  / (max_motor_frequency - min_motor_frequency) 
+						  * carrier_frequencies.length;
+						setCarrierFrequency(carrier_frequencies[Math.floor(idx)]);
+						setOscillationFunction(null);
+						setPulsingMethod("ASYNC");
+						break;
+					}
+				case "ASYNC-OSCILLATING":
+					{
+						let funct;
+						switch (oscillation_mode) {
+							case "TRIANGLE":
+								funct = (microsec) => {
+									const timeFactor = (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
+									const factor = timeFactor >= 0.5 ? 2 - 2 * timeFactor : 2 * timeFactor;
+									return (max_carrier_frequency - min_carrier_frequency) * factor + min_carrier_frequency;
+								}
+								break
+							case "SAW-RISING":
+								funct = (microsec) => {
+									const timeFactor = (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
+									return (max_carrier_frequency - min_carrier_frequency) * timeFactor + min_carrier_frequency;
+								}
+								break
+							case "SAW-FALLING":
+								funct = (microsec) => {
+									const timeFactor = 1 - (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
+									return (max_carrier_frequency - min_carrier_frequency) * timeFactor + min_carrier_frequency;
+								}
+								break
+							case "SINE":
+								funct = (microsec) => {
+									const timeFactor = (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
+									const factor = Math.sin(timeFactor * Math.PI * 2) / 2 + 0.5;
+									return (max_carrier_frequency - min_carrier_frequency) * factor + min_carrier_frequency;
+								}
+								break
+							case "SQUARE":
+								funct = (microsec) => {
+									const timeFactor = (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
+									return timeFactor <= 0.5 ? min_carrier_frequency : max_carrier_frequency;
+								}
+								break
+						}
+						setOscillationFunction(funct);
+						setPulsingMethod("ASYNC");
+						break;
+					}
 				case "ASYNC":
 					{
 						setCarrierFrequency(carrier_frequency);
+						setOscillationFunction(null);
 						setPulsingMethod("ASYNC");
 						break;
 					}
@@ -173,6 +242,7 @@ function commandVF(frequency, power) {
 						  * (max_carrier_frequency - min_carrier_frequency)
 						  + min_carrier_frequency; 
 						setCarrierFrequency(Math.min(Math.max(min_carrier_frequency, calculatedCarrierFrequency), max_carrier_frequency));
+						setOscillationFunction(null);
 						setPulsingMethod("ASYNC");
 						break;
 					}

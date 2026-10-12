@@ -61,7 +61,7 @@
 				margin-right: 0.5rem
 			}
 
-			#json {
+			#text {
 				position: absolute;
 				top: 5vw;
 				left: 5vw;
@@ -72,7 +72,7 @@
 				border-radius: 1vw;
 			}
 
-			.json-buttons {
+			.buttons {
 				position: absolute;
 				display: flex;
 				flex-direction: row;
@@ -110,7 +110,7 @@
 			<button id="increase">Increase Throttle</button><button id="decrease">Decrease Throttle</button><button id="reset">Reset Throttle</button>
 		</div>
 		<div class="editor right">
-			<button id="new">New Train</button><button id="save">Save Train</button><select id="load">
+			<button id="new">New Train</button><button id="save">Save Train</button><button id="generate-code">Generate Code</button><select id="load">
 
 			</select>
 			<br><br>
@@ -121,7 +121,7 @@
 		<canvas id="canvas">
 			
 		</canvas>
-		<textarea id="json" hidden="true"></textarea>
+		<textarea id="text" hidden="true"></textarea>
 	</body>
 	<script src="./pulsing.js"></script>
 	<script src="./render.js"></script>
@@ -246,16 +246,32 @@
 				let pulsingMode = currentTrain.pulsing[idx] ?? { };
 				const newPulsingMode = createElement("div", {}, ["pulsing-element"]);
 				const modes = createElement("select");
-				for (const mode of ["ASYNC", "ASYNC-OSCILLATING", "ASYNC-SWEEP", "SYNC", "AUTO-SYNC", "SHE-PWM"]) {
+				for (const mode of ["ASYNC", "ASYNC-STEP", "ASYNC-OSCILLATING", "ASYNC-SWEEP", "SYNC", "AUTO-SYNC", "SHE-PWM"]) {
 					modes.appendChild(createElement("option", {
 						textContent: mode,
 						value: mode
 					}));
 				}
+				const oscillationMode = createElement("select", { "data-value": "oscillation_mode" });
+				for (const mode of ["TRIANGLE", "SINE", "SQUARE", "SAW-RISING", "SAW-FALLING"]) {
+					oscillationMode.appendChild(createElement("option", {
+						textContent: mode,
+						value: mode
+					}));
+				};
 				function updateValue(event) {
 					const element = event.srcElement;
 					const key = element["data-value"];
-					pulsingMode[key] = Number(element.value);
+					switch (key) {
+						case "carrier_frequencies":
+							pulsingMode[key] = element.value.split(/[, ]/).filter(e => e != "").map(Number);
+							break;
+						case "oscillation_mode":
+							pulsingMode[key] = element.value;
+							break;
+						default:
+							pulsingMode[key] = Number(element.value);
+					}
 					if (pulsingMode[key] < 0) delete pulsingMode[key];
 					currentTrain.pulsing[idx] = pulsingMode;
 					loadTrainToSim();
@@ -265,7 +281,10 @@
 					createElement("input", { "data-value": "max_speed", type: "number", value: 0, step: 0.1, min: -1 }, ["thin"]),
 					createElement("input", { "data-value": "min_motor_frequency", type: "number", value: -1, step: 0.1, min: -1 }, ["thin"]),
 					createElement("input", { "data-value": "max_motor_frequency", type: "number", value: -1, step: 0.1, min: -1 }, ["thin"]),
+					oscillationMode,
+					createElement("input", { "data-value": "oscillation_frequency", type: "number", value: 5, step: 0.1, min: 0.1 }, ["thin"]),
 					createElement("input", { "data-value": "carrier_frequency", type: "number", value: 400, step: 10, min: 50 }, ["thin"]),
+					createElement("input", { "data-value": "carrier_frequencies", type: "string", value: "300, 350, 400, 450, 500", step: 10, min: 50 }),
 					createElement("input", { "data-value": "min_carrier_frequency", type: "number", value: 400, step: 10, min: 50 }, ["thin"]),
 					createElement("input", { "data-value": "max_carrier_frequency", type: "number", value: 500, step: 10, min: 50 }, ["thin"]),
 					createElement("input", { "data-value": "pulses", type: "number", value: 21, step: 1, min: 1 }, ["thin"]),
@@ -289,32 +308,37 @@
 					switch (modes.value) {
 						case "ASYNC":
 							{
-								updateVisibilities([true, true, true, true, true, false, false, false, false, false, false, false]);
+								updateVisibilities([true, true, true, true, false, false, true, false, false, false, false, false, false, false, false]);
+								break;
+							}
+						case "ASYNC-STEP":
+							{
+								updateVisibilities([true, true, true, true, false, false, false, true, false, false, false, false, false, false, false]);
 								break;
 							}
 						case "ASYNC-OSCILLATING":
 							{
-								updateVisibilities([true, true, true, true, false, true, true, false, false, false, false, false]);
+								updateVisibilities([true, true, true, true, true, true, false, false, true, true, false, false, false, false, false]);
 								break;
 							}
 						case "ASYNC-SWEEP":
 							{
-								updateVisibilities([true, true, true, true, false, true, true, false, false, false, false, false]);
+								updateVisibilities([true, true, true, true, false, false, false, false, true, true, false, false, false, false, false]);
 								break;
 							}
 						case "AUTO-SYNC":
 							{
-								updateVisibilities([true, true, true, true, false, false, false, false, true, true, true, true]);
+								updateVisibilities([true, true, true, true, false, false, false, false, false, false, false, true, true, true, true]);
 								break;
 							}
 						case "SYNC":
 							{
-								updateVisibilities([true, true, true, true, false, false, false, true, false, false, false, false]);
+								updateVisibilities([true, true, true, true, false, false, false, false, false, false, true, false, false, false, false]);
 								break;
 							}
 						case "SHE-PWM":
 							{
-								updateVisibilities([true, true, true, true, false, false, false, true, false, false, false, false]);
+								updateVisibilities([true, true, true, true, false, false, false, false, false, false, true, false, false, false, false]);
 								break;
 							}
 					}
@@ -329,7 +353,10 @@
 					"Max Speed (km/h): ",
 					"Min Motor Frequency (Hz, -1 = N/A): ",
 					"Max Motor Frequency (Hz, -1 = N/A): ",
+					"Oscillation Mode: ",
+					"Oscilaltion Frequency (Hz): ",
 					"Carrier Frequency (Hz): ",
+					"Carrier Frequencies (Hz): ",
 					"Min Carrier Frequency (Hz): ",
 					"Max Carrier Frequency (Hz): ",
 					"Pulses: ",
@@ -344,6 +371,7 @@
 					element.addEventListener("change", updateValue);
 					newPulsingMode.appendChild(createInput(texts.shift(), element));
 				}
+				oscillationMode.addEventListener("change", updateValue)
 				const deleteMode = createElement("button", {
 					textContent: "Delete"
 				});
@@ -352,6 +380,13 @@
 				});
 				deleteMode.addEventListener("click", () => {
 					pulsing.removeChild(newPulsingMode);
+					let idx = -1;
+					for (let i = 0; i < indicies.length; ++i) if (indicies[i] == ID) idx = i;
+					if (idx >= 0) {
+						indicies.splice(idx, 1);
+						currentTrain.pulsing.splice(idx, 1);
+						loadTrainToSim();
+					}
 				});
 				insertMode.addEventListener("click", () => {
 					addPulsingMode(idx);
@@ -401,19 +436,12 @@
 			});
 		});
 
-		const displayArea = document.getElementById("json");
+		const displayArea = document.getElementById("text");
 
-		document.getElementById("save").addEventListener("click", () => {
-			console.log("Saving " + trainName);
-			console.log(currentTrain);
-			const trainSave = {};
-			trainSave[trainName.toLowerCase().replaceAll(",", "-")] = currentTrain;
+		function saveText(text) {
 			displayArea.hidden = false;
-			displayArea.textContent = JSON.stringify(
-				trainSave,
-				null, "\t"
-			);
-			const buttons = createElement("div", {}, ["json-buttons"]);
+			displayArea.textContent = text;
+			const buttons = createElement("div", {}, ["buttons"]);
 			const closeButton = createElement("button", { textContent: "Close" });
 			const copyButton = createElement("button", { textContent: "Copy" });
 			buttons.append(copyButton, closeButton);
@@ -425,6 +453,114 @@
 			copyButton.addEventListener("click", () => {
 				navigator.clipboard.writeText(displayArea.textContent);
 			});
+		}
+
+		document.getElementById("save").addEventListener("click", () => {
+			console.log("Saving " + trainName);
+			console.log(currentTrain);
+			const trainSave = {};
+			trainSave[trainName.toLowerCase().replaceAll(",", "-")] = currentTrain;
+			saveText(JSON.stringify(
+				trainSave,
+				null, "\t"
+			));
+		});
+
+		document.getElementById("generate-code").addEventListener("click", () => {
+			let frequencies = ``;
+			let ifStatements = ``;
+			loadTrainToSim();
+			const parsedTrain = getTrainData();
+			let idx = 0;
+			let frequenciesVariableIdx = 0;
+			for (const pulsing of parsedTrain.pulsing) {
+				if (++idx >= parsedTrain.pulsing.length) {
+					ifStatements += `{\n`; 
+				} else {
+					ifStatements += `if (absSineFreq < (float)(${pulsing.max_motor_frequency})) {\n`;
+				}
+
+				switch (pulsing.mode) {
+					case "ASYNC":
+						{
+							ifStatements += `\tswitchingMode = ASYNC;\n\tPWMfreq = (float)(${pulsing.carrier_frequency});\n`;
+							break;
+						}
+					case "ASYNC-STEP":
+						{
+							const len = pulsing.carrier_frequencies.length;
+							frequencies += `float frequencies${++frequenciesVariableIdx}[] = {${pulsing.carrier_frequencies.join(", ")}};\n\n`;
+							ifStatements += `\tswitchingMode = ASYNC;\n\tPWMfreq = frequencies${frequenciesVariableIdx}[min(${len}, (int)((absSineFreq - ${pulsing.min_motor_frequency})`
+							+ ` / ${pulsing.max_motor_frequency - pulsing.min_motor_frequency} * (float)(${len})))];\n`
+							break;
+						}
+					case "ASYNC-SWEEP":
+						{
+							const scalar = (pulsing.max_carrier_frequency - pulsing.min_carrier_frequency)
+							 / (pulsing.max_motor_frequency - pulsing.min_motor_frequency);
+							ifStatements += `\tswitchingMode = ASYNC;\n\t`
+							+ `PWMfreq = min(max(absSineFreq * ${scalar} + ${pulsing.min_carrier_frequency - scalar * pulsing.min_motor_frequency}, `
+							+ `${pulsing.min_carrier_frequency}), ${pulsing.max_carrier_frequency});\n`;
+							break;
+						}
+					case "ASYNC-OSCILLATING":
+						{
+							let oscillation = ``;
+
+							switch (pulsing.oscillation_mode) {
+								case "TRIANGLE":
+									oscillation = `float factor = timeFactor >= 0.5f ? 2.0f - 2.0f * timeFactor : 2.0f * timeFactor;\n\t`
+									+ `PWMfreq = (float)(${pulsing.max_carrier_frequency - pulsing.min_carrier_frequency} `
+									+ `* factor + ${pulsing.min_carrier_frequency});`;
+									break;
+								case "SAW-RISING":
+									oscillation = `PWMfreq = (float)(${pulsing.max_carrier_frequency - pulsing.min_carrier_frequency} `
+									+ `* timeFactor + ${pulsing.min_carrier_frequency});`;
+									break;
+								case "SAW-FALLING":
+									oscillation = `PWMfreq = (float)(${pulsing.max_carrier_frequency - pulsing.min_carrier_frequency} `
+									+ `* (1.0f - timeFactor) + ${pulsing.min_carrier_frequency});`;
+									break;
+								case "SINE":
+									oscillation = `float factor = sin(timeFactor * tau) / 2.0f + 0.5f;\n\t`
+									+ `PWMfreq = (float)(${pulsing.max_carrier_frequency - pulsing.min_carrier_frequency} `
+									+ `* factor + ${pulsing.min_carrier_frequency});`;
+									break;
+								case "SQUARE":
+									oscillation = `PWMfreq = timeFactor <= 0.5f ? ${pulsing.min_carrier_frequency} : ${pulsing.max_carrier_frequency};`;
+									break;
+							}
+
+							ifStatements += `\tswitchingMode = ASYNC;\n\t`
+							+ `float timeFactor = fmod((float)(rawMicroSec % 1000000) / 1000000.0f, `
+							+ `${1 / pulsing.oscillation_frequency}) * ${pulsing.oscillation_frequency};\n\t${oscillation}\n`
+							break;
+						}
+					case "SYNC":
+						{
+							ifStatements += `\tswitchingMode = SYNC;\n\tnoOfSwitches = ${Math.floor(pulsing.pulses * 4)};\n`;
+							break;
+						}
+					case "AUTO-SYNC":
+						{
+							let equation = `(int)(${pulsing.max_switching_frequency} / (absSineFreq * ${2 * pulsing.pulse_step}))`
+							if ((pulsing.min_pulses & 1) && (pulsing.pulse_step & 1) == 0) equation = `(${equation} | 1)`; 
+							ifStatements += `\tswitchingMode = SYNC;\n\tnoOfSwitches = min(${Math.floor(pulsing.max_pulses * 4)},`
+							+ ` max(${Math.floor(pulsing.min_pulses * 4)}, ${equation} * 4.0f));\n`;
+							break;
+						}
+				}
+
+				if (idx < parsedTrain.pulsing.length) {
+					ifStatements += `} else `;
+				} else {
+					ifStatements += `}\n`;
+				}
+			}
+			let code = `${frequencies}sineFreq += throttle;\nfloat absSineFreq = abs(sineFreq);\npower = max(0.3f, min(1.0f, absSineFreq / 50.0f));\n\n`
+			+ `${ifStatements}\n\nsineFreqTime = 1000000.0f / min(50, absSineFreq);\nsineFreqTimeInt = (unsigned long)sineFreqTime;\n`
+			+ `PWMfreqTime = 1000000.0f / PWMfreq;\nPWMfreqTimeInt = (unsigned long)PWMfreqTime;`;
+			saveText(code);
 		});
 
 		const frequencyElement = document.getElementById("sine-frequency-val");
@@ -466,7 +602,7 @@
 						textContent: train
 					}));
 				}
-				loadTrain.value = trains[0];
+				loadTrain.value = "test";
 				console.log(trains)
 				loadTrain.dispatchEvent(new Event("change"));
 				loop();
@@ -495,7 +631,7 @@
 			const delta = 1 / (time - prevFrame);
 			prevFrame = time;
 			frequency += delta * throttle;
-			power = Math.abs(Math.min(1, frequency / 50));
+			power = Math.abs(Math.max(0.1, Math.min(1, frequency / 50)));
 			if (Math.abs(frequency) < 0.2) power = 0;
 
 			commandVF(frequency, power);
