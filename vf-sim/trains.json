@@ -316,5 +316,35 @@
 				"max_switching_frequency": 2000
 			}
 		]
+	},
+	"400hz": {
+		"wheel_diameter": 0.84,
+		"gear_ratio_motor_side": 6,
+		"gear_ratio_wheel_side": 1,
+		"speed_per_motor_hz": -1,
+		"pulsing": [
+			{
+				"mode": "ASYNC",
+				"carrier_frequency": 400,
+				"min_motor_frequency": 0,
+				"max_motor_frequency": 20
+			},
+			{
+				"mode": "AUTO-SYNC",
+				"carrier_frequency": 400,
+				"min_pulses": 1,
+				"max_pulses": 21,
+				"pulse_step": 2,
+				"max_switching_frequency": 400,
+				"min_motor_frequency": 20,
+				"max_motor_frequency": 50
+			},
+			{
+				"mode": "SYNC",
+				"pulses": 1,
+				"min_motor_frequency": 50,
+				"max_motor_frequency": 100
+			}
+		]
 	}
 }

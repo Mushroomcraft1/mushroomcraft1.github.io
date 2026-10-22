@@ -1,3 +1,6 @@
+export { setupDatabase, setTrain, commandVF, getVFData, getTrainData, getAvailableTrains };
+import { setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod } from "./pulsing.js";
+
 let trainDB = new Map();
 
 let currentTrainConfig;
@@ -148,33 +151,27 @@ function setTrain(trainID) {
  * @param {Float} frequency 
  * @param {Float} power 
  */
-function commandVF(frequency, power) {
+function commandVF(frequency, power, soundUpdateFunction) {
 	if (currentTrainConfig == null) throw "No train selected"
 
-	setFrequency(frequency);
-	setPower(power);
+	let data = { mode: "OFF", frequency: 0, power: 0 };
 
 	const absFrequency = Math.abs(frequency);
 
 	for (const pulsing of currentTrainConfig.pulsing) {
 		const { min_motor_frequency, max_motor_frequency, oscillation_mode, oscillation_frequency,
-			mode, pulses, carrier_frequency, carrier_frequencies, min_carrier_frequency,
+			pulses, mode, carrier_frequency, carrier_frequencies, min_carrier_frequency, 
 			max_carrier_frequency, min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulsing;
-		if (absFrequency > min_motor_frequency && frequency < max_motor_frequency) {
+
+		if (absFrequency >= min_motor_frequency && absFrequency < max_motor_frequency) {
+			data = { pulses, mode, carrier_frequency, power, frequency };
 			switch (mode) {
-				case "SYNC":
-				case "SHE-PWM":
-					{
-						setPulseCount(pulses);
-						setPulsingMethod(mode);
-						break;
-					}
 				case "AUTO-SYNC":
 					{
 						let calculatedPulseCount = Math.floor(max_switching_frequency / (absFrequency * 2 * pulse_step)) * pulse_step;
 						if ((min_pulses & 1) && (pulse_step & 1) == 0) calculatedPulseCount -= 1;
-						setPulseCount(Math.max(min_pulses, Math.min(max_pulses, calculatedPulseCount)));
-						setPulsingMethod("SYNC");
+						data.pulses = Math.max(min_pulses, Math.min(max_pulses, calculatedPulseCount));
+						data.mode = "SYNC";
 						break;
 					}
 				case "ASYNC-STEP":
@@ -182,9 +179,8 @@ function commandVF(frequency, power) {
 						let idx = (absFrequency - min_motor_frequency)
 						  / (max_motor_frequency - min_motor_frequency) 
 						  * carrier_frequencies.length;
-						setCarrierFrequency(carrier_frequencies[Math.floor(idx)]);
-						setOscillationFunction(null);
-						setPulsingMethod("ASYNC");
+						data.carrier_frequency = carrier_frequencies[Math.floor(idx)];
+						data.mode = "ASYNC";
 						break;
 					}
 				case "ASYNC-OSCILLATING":
@@ -224,15 +220,8 @@ function commandVF(frequency, power) {
 								}
 								break
 						}
-						setOscillationFunction(funct);
-						setPulsingMethod("ASYNC");
-						break;
-					}
-				case "ASYNC":
-					{
-						setCarrierFrequency(carrier_frequency);
-						setOscillationFunction(null);
-						setPulsingMethod("ASYNC");
+						data.oscillation_function = funct;
+						data.mode = "ASYNC";
 						break;
 					}
 				case "ASYNC-SWEEP":
@@ -241,16 +230,17 @@ function commandVF(frequency, power) {
 						  / (max_motor_frequency - min_motor_frequency)
 						  * (max_carrier_frequency - min_carrier_frequency)
 						  + min_carrier_frequency; 
-						setCarrierFrequency(Math.min(Math.max(min_carrier_frequency, calculatedCarrierFrequency), max_carrier_frequency));
-						setOscillationFunction(null);
-						setPulsingMethod("ASYNC");
+						data.carrier_frequency = Math.min(Math.max(min_carrier_frequency, calculatedCarrierFrequency), max_carrier_frequency);
+						data.mode = "ASYNC";
 						break;
 					}
 			}
 			break;
-
 		}
 	}
+
+	setBulkParameters(data);
+	if (soundUpdateFunction != null) soundUpdateFunction(data);
 }
 
 function getVFData() {

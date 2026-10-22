@@ -1,3 +1,6 @@
+export { setCanvas, setRenderOptions, renderVisualisations };
+import { pulse, high1, high2, high3, low1, low2, low3, sineFreq } from "./pulsing.js";
+
 let visulisationCanvas;
 let visulisationCanvasCtx;
 
@@ -68,9 +71,10 @@ function renderVisualisations() {
 	let phase3top = phase3Height - waveHeight;
 	let phase3bottom = phase3Height + waveHeight;
 
-	let y = prevHeight = phase1Height;
+	let y = phase1Height; 
+	let prevHeight = y;
 
-	let p = registerValues = prev = 0;
+	let [p, registerValues, prev] = [0];
 
 	visulisationCanvasCtx.beginPath();
 	visulisationCanvasCtx.lineWidth = renderOptions.lineWidth;

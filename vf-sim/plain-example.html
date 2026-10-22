@@ -18,11 +18,14 @@
 		Your website here<br><br>
 		Click to hear sound
 	</body>
-	<script src="https://mushroomcraft1.github.io/vf-sim/pulsing.js"></script>
-	<!-- <script src="./render.js"></script> Not needed -->
-	<script src="https://mushroomcraft1.github.io/vf-sim/sound.js"></script>
-	<script src="https://mushroomcraft1.github.io/vf-sim/interface.js"></script>
+	<script type="module" src="https://mushroomcraft1.github.io/vf-sim/pulsing.js"></script>
+	<!-- <script type="module" src="https://mushroomcraft1.github.io/vf-sim/render.js"></script> Not needed -->
+	<script type="module" src="https://mushroomcraft1.github.io/vf-sim/sound.js"></script>
+	<script type="module" src="https://mushroomcraft1.github.io/vf-sim/interface.js"></script>
 	<script>
+		import { setupDatabase, setTrain, commandVF } from "./interface.js";
+		import { setSoundOptions, startSound, stopSound } from "./sound.js";
+
 		// Web browser doesn't let you play sound until the document has been interacted with
 		function clickFunction() { 
 			setTimeout(() => {

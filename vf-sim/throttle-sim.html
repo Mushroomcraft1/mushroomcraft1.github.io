@@ -123,20 +123,30 @@
 		</canvas>
 		<textarea id="text" hidden="true"></textarea>
 	</body>
-	<script src="./pulsing.js"></script>
-	<script src="./render.js"></script>
-	<script src="./sound.js"></script>
-	<script src="./interface.js"></script>
-	<script>
+	<script type="module" src="./pulsing.js"></script>
+	<script type="module" src="./render.js"></script>
+	<script type="module" src="./sound.js"></script>
+	<script type="module" src="./interface.js"></script>
+	<script type="module">
+		import { setupDatabase, setTrain, commandVF, getVFData, getTrainData, getAvailableTrains } from "./interface.js";
+		import { setSoundOptions, startSound, stopSound } from "./sound.js";
+		import { setCanvas, setRenderOptions, renderVisualisations } from "./render.js";
+
 		let currentTrain = {};
 		let trainName = "";
+
+		let soundUpdateFunction;
 
 		const canvas = document.getElementById("canvas");
 		const ctx = canvas.getContext("2d");
 
 		function clickFunction() { 
 			setTimeout(() => {
-				startSound();
+				startSound()
+					.then((funct) => {
+						console.log(funct);
+						soundUpdateFunction = funct;
+					});
 				window.removeEventListener("pointerdown", clickFunction); 
 			}, 100);
 		}
@@ -148,7 +158,7 @@
 		const resetButton = document.getElementById("reset");
 
 		increaseButton.addEventListener("pointerdown", () => {
-			throttle = 0.3;
+			throttle = 0.22;
 		})
 
 		decreaseButton.addEventListener("pointerdown", () => {
@@ -193,7 +203,7 @@
 			const indicies = [];
 
 			const editor = document.getElementById("train-config");
-			editor.children = [];
+			editor.replaceChildren();
 
 			const nameValue = createElement("input", {
 				type: "text", value: trainName
@@ -580,8 +590,10 @@
 				sampleRate: parseInt(audioOptionsValue.value.slice(0, 2)) * 1000,
 				singlePhase: audioOptionsValue.value.endsWith("S") 
 			});
-			console.log(soundOptions);
-			startSound();
+			startSound()
+				.then((funct) => {
+					soundUpdateFunction = funct;
+				});
 		})
 
 		setCanvas(canvas, ctx);
@@ -602,7 +614,7 @@
 						textContent: train
 					}));
 				}
-				loadTrain.value = "test";
+				loadTrain.value = "400hz";
 				console.log(trains)
 				loadTrain.dispatchEvent(new Event("change"));
 				loop();
@@ -633,8 +645,9 @@
 			frequency += delta * throttle;
 			power = Math.abs(Math.max(0.1, Math.min(1, frequency / 50)));
 			if (Math.abs(frequency) < 0.2) power = 0;
+			frequency = Math.max(Math.min(50, frequency), -50);
 
-			commandVF(frequency, power);
+			commandVF(frequency, power, soundUpdateFunction);
 
 			const {
 				currentSpeed,

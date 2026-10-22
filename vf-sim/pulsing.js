@@ -1,3 +1,7 @@
+export { setFrequency, setPower, setPulseCount, setCarrierFrequency, setOscillationFunction,
+    setPulsingMethod, pulse, setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, 
+    pulsingMethod, high1, low1, high2, low2, high3, low3, highMask, lowMask, fullMask };
+
 // "ASYNC", "SYNC", "SHE-PWM"
 let pulsingMethod;
 let oscillationFunction;
@@ -117,11 +121,23 @@ function setPulsingMethod(newMethod) {
     pulsingMethod = newMethod;
 }
 
-function pulse(microsec) {
-    let mask1 = mask2 = mask3 = mask = 0;
+/**
+ * @param {Object} parameters
+ */
+function setBulkParameters(parameters) {
+    if (parameters.frequency != null) setFrequency(parameters.frequency);
+    if (parameters.carrier_frequency != null) setCarrierFrequency(parameters.carrier_frequency);
+    if (parameters.pulses != null) setPulseCount(parameters.pulses);
+    if (parameters.mode != null) pulsingMethod = parameters.mode;
+    if (parameters.power != null) pulsingPower = parameters.power;
+    if (parameters.oscillation_function != null) oscillationFunction = parameters.oscillation_function;
+}
 
-    curTime = microsec % PWMfreqTimeInt;
-    microsecMod = microsec % sineFreqTimeInt;
+function pulse(microsec) {
+    let [mask1, mask2, mask3, mask] = [0];
+
+    const curTime = microsec % PWMfreqTimeInt;
+    const microsecMod = microsec % sineFreqTimeInt;
 
     const progress = (microsecMod / sineFreqTime);
 
@@ -156,9 +172,9 @@ function pulse(microsec) {
         case "SYNC": {
             const triangleSync = abs((noOfPulses * progress % 2) - 1);
 
-            pattern1 = Sine1 > 0 ? high1 : low1;
-            pattern2 = Sine2 > 0 ? high2 : low2;
-            pattern3 = Sine3 > 0 ? high3 : low3;
+            const pattern1 = Sine1 > 0 ? high1 : low1;
+            const pattern2 = Sine2 > 0 ? high2 : low2;
+            const pattern3 = Sine3 > 0 ? high3 : low3;
 
             mask1 = abs(Sine1 * pulsingPower) > triangleSync ? pattern1 : 0;
             mask2 = abs(Sine2 * pulsingPower) > triangleSync ? pattern2 : 0;
@@ -172,9 +188,9 @@ function pulse(microsec) {
             currentSin2 = abs(Sine2);
             currentSin3 = abs(Sine3);
             
-            pattern1 = Sine1 > 0 ? high1 : low1;
-            pattern2 = Sine2 > 0 ? high2 : low2;
-            pattern3 = Sine3 > 0 ? high3 : low3;
+            const pattern1 = Sine1 > 0 ? high1 : low1;
+            const pattern2 = Sine2 > 0 ? high2 : low2;
+            const pattern3 = Sine3 > 0 ? high3 : low3;
 
             for (let i = 0; i < pulsePattern; ++i) {
                 if (pulseTimes[i] <= currentSin1) {
