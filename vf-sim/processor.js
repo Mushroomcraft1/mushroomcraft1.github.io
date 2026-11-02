@@ -32,8 +32,7 @@ let prevPower = 0;
 let targetFrequency = 0;
 let targetPower = 0;
 let deltaTime = 0;
-
-let pulsing;
+let oscillationFrequency;
 
 let soundOptions;
 
@@ -54,8 +53,10 @@ class NoiseGenerator extends AudioWorkletProcessor {
 				prevPower = pulsingPower;
 				interpolationProgress = 0;
 			}
+
 			setBulkParameters(event.data);
 			
+			oscillationFrequency = event.data.oscillation_frequency;
 			targetFrequency = event.data.frequency;
 			targetPower = event.data.power;
 		});
@@ -88,7 +89,12 @@ class NoiseGenerator extends AudioWorkletProcessor {
 			nowBuffering[i] = current * powerIncrementFactor;
 		}
 		PWMIndex += len;
-		PWMIndex %= 1000000 / PWMfreq / microsecPerSamples;
+		
+		if (oscillationFrequency != null) {
+			PWMIndex %= 1000000 / oscillationFrequency / microsecPerSamples;
+		} else {			
+			PWMIndex %= 1000000 / PWMfreq / microsecPerSamples;
+		}
 
 		sineProgress += len / noOfSamples;
 		sineProgress %= 1;

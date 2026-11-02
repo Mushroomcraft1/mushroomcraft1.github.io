@@ -93,7 +93,7 @@
 			}
 		]
 	},
-	"new train": {
+	"ansaldobreda": {
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
@@ -216,7 +216,7 @@
 			}
 		]
 	},
-	"test": {
+	"ben's MRI machine": {
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
@@ -356,5 +356,24 @@
 				"max_motor_frequency": 100
 			}
 		]
+	},
+	"static": {
+		"wheel_diameter": 0.84,
+		"gear_ratio_motor_side": 6,
+		"gear_ratio_wheel_side": 1,
+		"speed_per_motor_hz": -1,
+		"pulsing": [
+			{
+				"mode": "ASYNC-OSCILLATING",
+				"carrier_frequency": 1500,
+				"min_speed": 0,
+				"max_speed": 200,
+				"oscillation_mode": "TRIANGLE",
+				"oscillation_frequency": 120,
+				"min_carrier_frequency": 1200,
+				"max_carrier_frequency": 2400
+			}
+		],
+		"controls": {}
 	}
 }

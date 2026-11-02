@@ -166,7 +166,7 @@ function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
 			max_carrier_frequency, min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulsing;
 
 		if (absFrequency >= min_motor_frequency && absFrequency < max_motor_frequency) {
-			data = { pulses, mode, carrier_frequency, power, frequency };
+			data = { pulses, mode, carrier_frequency, oscillation_frequency, power, frequency };
 			switch (mode) {
 				case "AUTO-SYNC":
 					{
@@ -191,33 +191,33 @@ function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
 						switch (oscillation_mode) {
 							case "TRIANGLE":
 								funct = `(microsec) => {
-									const timeFactor = (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
+									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
 									const factor = timeFactor >= 0.5 ? 2 - 2 * timeFactor : 2 * timeFactor;
-									return (${max_carrier_frequency} - ${min_carrier_frequency}) * factor + ${min_carrier_frequency};
+									return (${max_carrier_frequency - min_carrier_frequency}) * factor + ${min_carrier_frequency};
 								}`
 								break
 							case "SAW-RISING":
 								funct = `(microsec) => {
-									const timeFactor = (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
-									return (${max_carrier_frequency} - ${min_carrier_frequency}) * timeFactor + ${min_carrier_frequency};
+									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
+									return (${max_carrier_frequency - min_carrier_frequency}) * timeFactor + ${min_carrier_frequency};
 								}`
 								break
 							case "SAW-FALLING":
 								funct = `(microsec) => {
-									const timeFactor = 1 - (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
-									return (${max_carrier_frequency} - ${min_carrier_frequency}) * timeFactor + ${min_carrier_frequency};
+									const timeFactor = 1 - ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
+									return (${max_carrier_frequency - min_carrier_frequency}) * timeFactor + ${min_carrier_frequency};
 								}`
 								break
 							case "SINE":
 								funct = `(microsec) => {
-									const timeFactor = (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
+									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
 									const factor = Math.sin(timeFactor * Math.PI * 2) / 2 + 0.5;
-									return (${max_carrier_frequency} - ${min_carrier_frequency}) * factor + ${min_carrier_frequency};
+									return (${max_carrier_frequency - min_carrier_frequency}) * factor + ${min_carrier_frequency};
 								}`
 								break
 							case "SQUARE":
 								funct = `(microsec) => {
-									const timeFactor = (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
+									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
 									return timeFactor <= 0.5 ? ${min_carrier_frequency} : ${max_carrier_frequency};
 								}`
 								break
@@ -235,6 +235,7 @@ function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
 							+ ${min_carrier_frequency}; 
 							return Math.min(Math.max(${min_carrier_frequency}, calculatedCarrierFrequency), ${max_carrier_frequency});
 						}`
+						data.oscillation_frequency = null;
 						data.mode = "ASYNC";
 						break;
 					}

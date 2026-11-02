@@ -186,9 +186,9 @@ function pulse(microsec, pwmMicrosec) {
             break;
         }
         case "SHE-PWM": {
-            currentSin1 = abs(Sine1);
-            currentSin2 = abs(Sine2);
-            currentSin3 = abs(Sine3);
+            const currentSin1 = abs(Sine1);
+            const currentSin2 = abs(Sine2);
+            const currentSin3 = abs(Sine3);
             
             const pattern1 = Sine1 > 0 ? high1 : low1;
             const pattern2 = Sine2 > 0 ? high2 : low2;
