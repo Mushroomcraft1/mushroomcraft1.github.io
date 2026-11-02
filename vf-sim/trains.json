@@ -216,7 +216,7 @@
 			}
 		]
 	},
-	"ben's MRI machine": {
+	"ben's mri machine": {
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
