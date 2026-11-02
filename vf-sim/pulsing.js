@@ -71,6 +71,7 @@ for (const setPulses of SHEPulsing) {
  * @param {Float} newFrequency 
  */
 function setFrequency(newFrequency) {
+    if (isNaN(newFrequency)) newFrequency = 0;
     sineFreq = newFrequency;
     sineFreqTime = 1000000 / newFrequency;
     sineFreqTimeInt = floor(sineFreqTime);
@@ -81,6 +82,7 @@ function setFrequency(newFrequency) {
  * @param {Float} newPower - Between 0 and 1 
  */
 function setPower(newPower) {
+    if (isNaN(newPower)) newPower = 0;
     pulsingPower = newPower;
 }
 
@@ -130,13 +132,13 @@ function setBulkParameters(parameters) {
     if (parameters.pulses != null) setPulseCount(parameters.pulses);
     if (parameters.mode != null) pulsingMethod = parameters.mode;
     if (parameters.power != null) pulsingPower = parameters.power;
-    if (parameters.oscillation_function != null) oscillationFunction = parameters.oscillation_function;
+    if (parameters.oscillation_function != null) oscillationFunction = eval(parameters.oscillation_function);
 }
 
-function pulse(microsec) {
+function pulse(microsec, pwmMicrosec) {
     let [mask1, mask2, mask3, mask] = [0];
 
-    const curTime = microsec % PWMfreqTimeInt;
+    const curTime = (pwmMicrosec ?? microsec) % PWMfreqTimeInt;
     const microsecMod = microsec % sineFreqTimeInt;
 
     const progress = (microsecMod / sineFreqTime);
@@ -154,7 +156,7 @@ function pulse(microsec) {
 
     switch (pulsingMethod) { 
         case "ASYNC": {
-            if (oscillationFunction != null) setCarrierFrequency(oscillationFunction(microsec));
+            if (oscillationFunction != null) setCarrierFrequency(oscillationFunction(pwmMicrosec ?? microsec));
 
             percentageTime1 = abs(Sine1 * pulsingPower) * PWMfreqTime;
             percentageTime2 = abs(Sine2 * pulsingPower) * PWMfreqTime;

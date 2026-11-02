@@ -150,8 +150,10 @@ function setTrain(trainID) {
 /**
  * @param {Float} frequency 
  * @param {Float} power 
+ * @param {Function} soundUpdateFunction 
+ * @param {FlodeltaTimeat} soundUpdateFunction 
  */
-function commandVF(frequency, power, soundUpdateFunction) {
+function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
 	if (currentTrainConfig == null) throw "No train selected"
 
 	let data = { mode: "OFF", frequency: 0, power: 0 };
@@ -188,36 +190,36 @@ function commandVF(frequency, power, soundUpdateFunction) {
 						let funct;
 						switch (oscillation_mode) {
 							case "TRIANGLE":
-								funct = (microsec) => {
-									const timeFactor = (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
+								funct = `(microsec) => {
+									const timeFactor = (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
 									const factor = timeFactor >= 0.5 ? 2 - 2 * timeFactor : 2 * timeFactor;
-									return (max_carrier_frequency - min_carrier_frequency) * factor + min_carrier_frequency;
-								}
+									return (${max_carrier_frequency} - ${min_carrier_frequency}) * factor + ${min_carrier_frequency};
+								}`
 								break
 							case "SAW-RISING":
-								funct = (microsec) => {
-									const timeFactor = (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
-									return (max_carrier_frequency - min_carrier_frequency) * timeFactor + min_carrier_frequency;
-								}
+								funct = `(microsec) => {
+									const timeFactor = (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
+									return (${max_carrier_frequency} - ${min_carrier_frequency}) * timeFactor + ${min_carrier_frequency};
+								}`
 								break
 							case "SAW-FALLING":
-								funct = (microsec) => {
-									const timeFactor = 1 - (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
-									return (max_carrier_frequency - min_carrier_frequency) * timeFactor + min_carrier_frequency;
-								}
+								funct = `(microsec) => {
+									const timeFactor = 1 - (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
+									return (${max_carrier_frequency} - ${min_carrier_frequency}) * timeFactor + ${min_carrier_frequency};
+								}`
 								break
 							case "SINE":
-								funct = (microsec) => {
-									const timeFactor = (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
+								funct = `(microsec) => {
+									const timeFactor = (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
 									const factor = Math.sin(timeFactor * Math.PI * 2) / 2 + 0.5;
-									return (max_carrier_frequency - min_carrier_frequency) * factor + min_carrier_frequency;
-								}
+									return (${max_carrier_frequency} - ${min_carrier_frequency}) * factor + ${min_carrier_frequency};
+								}`
 								break
 							case "SQUARE":
-								funct = (microsec) => {
-									const timeFactor = (microsec / 1_000_000 % (1 / oscillation_frequency)) * oscillation_frequency;
-									return timeFactor <= 0.5 ? min_carrier_frequency : max_carrier_frequency;
-								}
+								funct = `(microsec) => {
+									const timeFactor = (microsec / 1_000_000 % (1 / ${oscillation_frequency})) * ${oscillation_frequency};
+									return timeFactor <= 0.5 ? ${min_carrier_frequency} : ${max_carrier_frequency};
+								}`
 								break
 						}
 						data.oscillation_function = funct;
@@ -226,21 +228,28 @@ function commandVF(frequency, power, soundUpdateFunction) {
 					}
 				case "ASYNC-SWEEP":
 					{
-						let calculatedCarrierFrequency = (absFrequency - min_motor_frequency)
-						  / (max_motor_frequency - min_motor_frequency)
-						  * (max_carrier_frequency - min_carrier_frequency)
-						  + min_carrier_frequency; 
-						data.carrier_frequency = Math.min(Math.max(min_carrier_frequency, calculatedCarrierFrequency), max_carrier_frequency);
+						data.oscillation_function = `(microsec) => {
+							let calculatedCarrierFrequency = (sineFreq - ${min_motor_frequency})
+							/ (${max_motor_frequency - min_motor_frequency})
+							* (${max_carrier_frequency - min_carrier_frequency})
+							+ ${min_carrier_frequency}; 
+							return Math.min(Math.max(${min_carrier_frequency}, calculatedCarrierFrequency), ${max_carrier_frequency});
+						}`
 						data.mode = "ASYNC";
 						break;
 					}
+				default:
+					data.oscillation_function = null;
+					break;
 			}
 			break;
 		}
 	}
 
 	setBulkParameters(data);
-	if (soundUpdateFunction != null) soundUpdateFunction(data);
+	if (soundUpdateFunction != null) {
+		soundUpdateFunction(data, deltaTime);
+	}
 }
 
 function getVFData() {

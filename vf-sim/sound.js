@@ -6,9 +6,13 @@ let soundOptions = {
 	singlePhase: false,
 	sampleRate: 48000,
 	bufferDuration: 50,
-	waveAmplitude: 0.1,
+	volume: 1,
 	smoothLength: 5,
+	useInterpolation: true
 };
+
+
+let audioCtx, gainNode;
 
 /**
  * @param {Object}
@@ -17,15 +21,15 @@ function setSoundOptions(newOptions) {
 	for (const key in newOptions) {
 		soundOptions[key] = newOptions[key]
 	}
-}
 
-let noiseNode;
-let smoothNode;
-let audioCtx;
+	if (gainNode != null) {
+		gainNode.gain.setValueAtTime(soundOptions.volume, audioCtx.currentTime);
+	}
+}
 
 async function startSound() {
 	return new Promise((res, rej) => {
-		if (soundStarted) rej("SoundSim already started");
+		if (soundStarted) stopSound();
 		soundStarted = true;
 		console.log("Started sound")
 
@@ -33,16 +37,23 @@ async function startSound() {
 			sampleRate: soundOptions.sampleRate
 		});
 
+		audioCtx.state
+
 		audioCtx.audioWorklet.addModule("processor.js")
 			.then(() => {
-				smoothNode = new AudioWorkletNode(audioCtx, "vf-filter");
-				noiseNode = new AudioWorkletNode(audioCtx, "vf-generator", { processorOptions: {
-					sampleRate: soundOptions.sampleRate
-				} });
-				smoothNode.connect(audioCtx.destination);
-				noiseNode.connect(smoothNode);
+				const smoothNode = new AudioWorkletNode(audioCtx, "vf-filter");
+				const speedDistortNode = new AudioWorkletNode(audioCtx, "vf-distort");
+				const noiseNode = new AudioWorkletNode(audioCtx, "vf-generator", { processorOptions: soundOptions });
+				gainNode = new GainNode(audioCtx);
 				
-				res((data) => {
+				noiseNode
+					.connect(smoothNode)
+					.connect(speedDistortNode)
+					.connect(gainNode)
+					.connect(audioCtx.destination);
+				
+				res((data, deltaTime) => {
+					data.deltaTime = deltaTime;
 					noiseNode.port.postMessage(data);
 				});
 			});
@@ -50,5 +61,6 @@ async function startSound() {
 }
 
 function stopSound() {
+	if (audioCtx.state != "closed") audioCtx.close();
 	soundStarted = false;
 }

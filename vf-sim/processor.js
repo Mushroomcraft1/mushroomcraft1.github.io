@@ -1,5 +1,7 @@
 import { setBulkParameters, pulse, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod,
-    high1, low1, high2, low2, high3, low3, highMask, lowMask, fullMask } from "./pulsing.js";
+    high1, low1, high2, low2, high3, low3, highMask, lowMask, fullMask, 
+	setFrequency,
+	setPower} from "./pulsing.js";
 
 /**
  * Counts the number of 1 bits in an integer
@@ -16,16 +18,46 @@ function popCount(x) {
 }
 
 let idx = 0;
+let PWMIndex = 0;
+let sineProgress = 0;
+let interpolationProgress = 0;
+
 const powerIncrementFactor = 0.1;
+const distortionFactor = 0.5;
+
 let microsecPerSamples;
+let sampleRate;
+let prevFrequency = 0;
+let prevPower = 0;
+let targetFrequency = 0;
+let targetPower = 0;
+let deltaTime = 0;
+
+let pulsing;
+
+let soundOptions;
 
 class NoiseGenerator extends AudioWorkletProcessor {
 	constructor(options) {
 		super();
-		microsecPerSamples = 1000 / (options.processorOptions.sampleRate / 1000)
+		soundOptions = options.processorOptions;
+		sampleRate = options.processorOptions.sampleRate;
+		microsecPerSamples = 1000 / (sampleRate / 1000)
+		console.log(sampleRate + "Hz")
+		console.log(soundOptions)
 
 		this.port.onmessage = ((event) => {
+			const d = event.data.deltaTime;
+			if (!isNaN(d) && d > 0 && soundOptions.useInterpolation) {
+				deltaTime = d * 1000;
+				prevFrequency = sineFreq;
+				prevPower = pulsingPower;
+				interpolationProgress = 0;
+			}
 			setBulkParameters(event.data);
+			
+			targetFrequency = event.data.frequency;
+			targetPower = event.data.power;
 		});
 	}
 
@@ -34,8 +66,19 @@ class NoiseGenerator extends AudioWorkletProcessor {
 		const nowBuffering = output[0];
 		const len = nowBuffering.length;
 
+		if (soundOptions.useInterpolation && deltaTime > 0) {
+			const interp = Math.min(1, interpolationProgress / deltaTime);
+			setFrequency(prevFrequency + interp * (targetFrequency - prevFrequency));
+			setPower(prevPower + interp * (targetPower - prevPower));
+			interpolationProgress += len * microsecPerSamples;
+		}
+
+		const noOfSamples = 1000000 / sineFreq / microsecPerSamples;
+
+		idx = Math.floor(noOfSamples * sineProgress);
+
 		for (let i = 0; i < len; ++i) {
-			const registers = pulse((i + idx) * microsecPerSamples);
+			const registers = pulse((i + idx) * microsecPerSamples, (i + PWMIndex) * microsecPerSamples);
 			const high = popCount(registers & highMask);
 			const low = popCount(registers & lowMask);
 			let current = high + low;
@@ -44,10 +87,11 @@ class NoiseGenerator extends AudioWorkletProcessor {
 
 			nowBuffering[i] = current * powerIncrementFactor;
 		}
-		idx += len;
-		if (pulsingMethod != "ASYNC") {
-			idx %= Math.floor(1000000 / sineFreq / microsecPerSamples);
-		}
+		PWMIndex += len;
+		PWMIndex %= 1000000 / PWMfreq / microsecPerSamples;
+
+		sineProgress += len / noOfSamples;
+		sineProgress %= 1;
 
 		return true;
 	}
@@ -81,5 +125,27 @@ class NoiseFilter extends AudioWorkletProcessor {
 	}
 }
 
+let sineStage = 0; 
+
+class Distort extends AudioWorkletProcessor {
+	constructor(options) {
+		super();
+	}
+
+	process(inputs, outputs, parameters) {
+		const output = outputs[0];
+		const nowBuffering = output[0];
+		const input = inputs[0][0];
+		const len = input.length;
+
+		for (let i = 0; i < len; ++i) {
+			nowBuffering[i] = input[i] + Math.sin(sineStage * Math.PI * 2) * distortionFactor;
+			sineStage += sineFreq / (8 * sampleRate);
+			sineStage %= 1;
+		}
+	}
+}
+
 registerProcessor("vf-generator", NoiseGenerator);
 registerProcessor("vf-filter", NoiseFilter);
+registerProcessor("vf-distort", Distort);
