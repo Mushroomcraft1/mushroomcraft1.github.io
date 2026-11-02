@@ -121,7 +121,7 @@
 		</div>
 		<div class="throttle">
 			<input id="throttle" type="range" min="-1" max="1" step="0.01"></input>
-			<button id="reset">Reset Throttle</button>
+			<button id="reset">Reset Speed</button>
 		</div>
 		<div class="editor right">
 			<button id="new">New Train</button><button id="save">Save Train</button><button id="generate-code">Generate Code</button><select id="load">
@@ -704,17 +704,16 @@
 
 			throttle = Number(throttleSlider.value);
 
-			const peakPoint = (currentTrain.peak_point ?? 0) * currentTrain.speed_per_motor_hz;
+			const peakPoint = currentTrain.peak_point == null ? 50 : currentTrain.peak_point * currentTrain.speed_per_motor_hz;
 			const maxFrequency = (currentTrain.max_speed ?? 100) * currentTrain.speed_per_motor_hz;
-			const accelleration = (throttle > 0 ? (1 - Math.max(0, frequency - peakPoint) / (maxFrequency - peakPoint))
+			const accelleration = (throttle > 0 ? (1 - Math.max(0, frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
 			 * (currentTrain.accelleration ?? 5) : currentTrain.decelleration ?? 5) * throttle;
-			console.log(accelleration)
 
 			frequency += deltaTime / 1000 * accelleration;
 
 			power = Math.abs(throttle)
 			 * Math.max(currentTrain.controls.min_power ?? 0.1,
-			   Math.min(1, frequency / maxFrequency))
+			   Math.min(1, frequency / peakPoint))
 			 * (currentTrain.controls.max_power ?? 1);
 			if (Math.abs(frequency) < 0.2) power = 0;
 			frequency = Math.max(0, frequency);
