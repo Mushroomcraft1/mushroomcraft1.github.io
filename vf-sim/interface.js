@@ -155,7 +155,7 @@ function setTrain(trainID) {
  * @param {Float} frequency 
  * @param {Float} power 
  * @param {Function} soundUpdateFunction 
- * @param {FlodeltaTimeat} soundUpdateFunction 
+ * @param {Float} soundUpdateFunction 
  */
 function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
 	if (currentTrainConfig == null) throw "No train selected"

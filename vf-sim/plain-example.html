@@ -12,83 +12,128 @@
 				color: yellow;
 				font: 1rem "Fira Sans", sans-serif;
 			}
+
+			canvas {
+				position: fixed;
+				width: 100%;
+				height: 25%;
+				bottom: 0;
+				left: 0;
+			}
 		</style>
 	</head>
 	<body>
-		Your website here<br><br>
-		Click to hear sound
+		Set the variable this.throttle in the console to control the simulator
+		<canvas id="canvas">
+			
+		</canvas>
 	</body>
-	<script type="module" src="https://mushroomcraft1.github.io/vf-sim/pulsing.js"></script>
-	<!-- <script type="module" src="https://mushroomcraft1.github.io/vf-sim/render.js"></script> Not needed -->
-	<script type="module" src="https://mushroomcraft1.github.io/vf-sim/sound.js"></script>
-	<script type="module" src="https://mushroomcraft1.github.io/vf-sim/interface.js"></script>
-	<script>
-		import { setupDatabase, setTrain, commandVF } from "./interface.js";
+	<script type="module" src="./pulsing.js"></script>
+	<script type="module" src="./render.js"></script>
+	<script type="module" src="./sound.js"></script>
+	<script type="module" src="./interface.js"></script>
+	<script type="module">
+		import { setupDatabase, setTrain, commandVF, getVFData, getTrainData, getAvailableTrains } from "./interface.js";
 		import { setSoundOptions, startSound, stopSound } from "./sound.js";
+		import { setCanvas, setRenderOptions, renderVisualisations } from "./render.js";
 
-		// Web browser doesn't let you play sound until the document has been interacted with
+		let soundUpdateFunction;
+		let currentTrain;
+
+		const canvas = document.getElementById("canvas");
+		const ctx = canvas.getContext("2d");
+
 		function clickFunction() { 
 			setTimeout(() => {
-				startSound();
-				window.removeEventListener("pointerup", clickFunction); 
+				startSound()
+					.then((funct) => {
+						console.log(funct);
+						soundUpdateFunction = funct;
+					});
+				window.removeEventListener("pointerdown", clickFunction); 
 			}, 100);
 		}
 
-		window.addEventListener("pointerup", clickFunction);
+		// Start the sound once the mouse was pressed
+		window.addEventListener("pointerdown", clickFunction);
 
-		// Load the database. Can be from a URL, or can just paste the object directly
-		// setupDatabase("https://mushroomcraft1.github.io/vf-sim/trains.json")
-		setupDatabase({ 
-			"new train": {
-				"wheel_diameter": 0.84,
-				"gear_ratio_motor_side": 6,
-				"gear_ratio_wheel_side": 1,
-				"speed_per_motor_hz": -1,
-				"pulsing": [
-					{
-						"mode": "ASYNC",
-						"carrier_frequency": 400,
-						"min_speed": 0,
-						"max_speed": 20
-					},
-					{
-						"mode": "AUTO-SYNC",
-						"min_speed": 20,
-						"max_speed": 200,
-						"carrier_frequency": 400,
-						"min_pulses": 5,
-						"max_pulses": 41,
-						"pulse_step": 2,
-						"max_switching_frequency": 400
-					}
-				]
-			}})
-			// Async function because it can require fetching a JSON file from the internet
+		setCanvas(canvas, ctx);
+
+		setupDatabase("./trains.json")
 			.then(() => {
-				setTrain("new train");
+				reset();
 				loop();
 			});
-
-		// waveAmplitude is your "volume"
+		
+		// Single phase visualisation that takes up most of the canvas
+		setRenderOptions({
+			renderSinglePhase: true,
+			waveHeight: 0.4,
+			phase1Position: 0.5,
+			sampleRate: 10000,
+			samplesPerPixel: 2
+		});
 		setSoundOptions({
-			waveAmplitude: 0.05
+			useInterpolation: true
 		});
 
-		let frequency = 0;
-		let power = 0;
-		let throttle = 0;
 		let prevFrame = 0;
+
+		function reset() {
+			const trains = getAvailableTrains();
+			currentTrain = setTrain("kiepe");
+			currentTrain.speed_per_motor_hz = getTrainData().speed_per_motor_hz;
+				
+			globalThis.frequency = 0;
+			globalThis.power = 0;
+			globalThis.throttle = 0;
+			globalThis.hill = 1;
+		}
 
 		function loop() {
 			const time = performance.now();
-			const delta = 1 / (time - prevFrame);
+			const deltaTime = time - prevFrame;
 			prevFrame = time;
-			frequency += delta * throttle;
-			power = Math.abs(Math.min(1, frequency / 50));
 
-			if (frequency >= 50) throttle = -0.3;
-			if (frequency <= 0) throttle = 0.3;
-			commandVF(frequency, power);
+			if (isNaN(globalThis.frequency)) {
+				reset();
+				console.error("Something is wrong, make sure no values are being undefined")
+			}
+
+			const controls = currentTrain.controls ?? {};
+
+			const peakPoint = currentTrain.peak_point == null ? 50 : currentTrain.peak_point * currentTrain.speed_per_motor_hz;
+			const maxFrequency = currentTrain.max_speed == null ? 120 : currentTrain.max_speed * currentTrain.speed_per_motor_hz;
+			const accelleration = (globalThis.throttle > 0 ? (1 - Math.max(0, globalThis.frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
+			 * ((controls.accelleration ?? 2.5) * globalThis.hill): (controls.decelleration ?? 3) / globalThis.hill) * globalThis.throttle;
+
+			globalThis.frequency += deltaTime / 1000 * (accelleration * currentTrain.speed_per_motor_hz);
+
+			globalThis.power = Math.abs(globalThis.throttle)
+			 * Math.max(controls.min_power ?? 0.1,
+			   Math.min(1, globalThis.frequency / peakPoint))
+			 * (controls.max_power ?? 1);
+			if (Math.abs(globalThis.frequency) < 0.2) globalThis.power = 0;
+			globalThis.frequency = Math.max(0, globalThis.frequency);
+
+			commandVF(globalThis.frequency, globalThis.power, soundUpdateFunction, deltaTime);
+			setSoundOptions({
+				volume: 0.75
+			});
+
+			// You can use or display these
+			const {
+				currentSpeed,
+				currentFrequency,
+				currentPower,
+				carrierFrequency,
+				pulses,
+				pulsingMode,
+			} = getVFData();
+
+			globalThis.speed = currentSpeed;
+
+			renderVisualisations();
 
 			requestAnimationFrame(loop);
 		};

@@ -217,7 +217,7 @@
 				type: "number", value: currentTrain.wheel_diameter, step: 0.01, min: 0.1 
 			}, ["thin"]);
 			wheelDiameter.addEventListener("change", () => {
-				currentTrain.wheel_diameter = wheelDiameter.value;
+				currentTrain.wheel_diameter = Number(wheelDiameter.value);
 				loadTrainToSim();
 			});
 			
@@ -226,14 +226,14 @@
 				type: "number", value: currentTrain.gear_ratio_motor_side, step: 1, min: 0.1 
 			}, ["thin"]);
 			gearRatioMotorSide.addEventListener("change", () => {
-				currentTrain.gear_ratio_motor_side = gearRatioMotorSide.value;
+				currentTrain.gear_ratio_motor_side = Number(gearRatioMotorSide.value);
 				loadTrainToSim();
 			});
 			const gearRatioWheelSide = createElement("input", {
 				type: "number", value: currentTrain.gear_ratio_wheel_side, step: 1, min: 0.1 
 			}, ["thin"]);
 			gearRatioWheelSide.addEventListener("change", () => {
-				currentTrain.gear_ratio_wheel_side = gearRatioWheelSide.value;
+				currentTrain.gear_ratio_wheel_side = Number(gearRatioWheelSide.value);
 				loadTrainToSim();
 			});
 			gearRatio.append(gearRatioMotorSide, document.createTextNode(" : "), gearRatioWheelSide);
@@ -251,7 +251,7 @@
 				type: "number", value: currentTrain.max_speed, step: 1, min: 0
 			}, ["thin"]);
 			maxSpeed.addEventListener("change", () => {
-				currentTrain.max_speed = maxSpeed.value;
+				currentTrain.max_speed = Number(maxSpeed.value);
 				loadTrainToSim();
 			});
 
@@ -259,7 +259,15 @@
 				type: "number", value: currentTrain.peak_point, step: 1, min: 0
 			}, ["thin"]);
 			peakPoint.addEventListener("change", () => {
-				currentTrain.peak_point = peakPoint.value;
+				currentTrain.peak_point = Number(peakPoint.value);
+				loadTrainToSim();
+			});
+
+			const rollingResistance = createElement("input", {
+				type: "number", value: currentTrain.rolling_resistance, step: 0.01, min: 0
+			}, ["thin"]);
+			rollingResistance.addEventListener("change", () => {
+				currentTrain.rolling_resistance = Number(rollingResistance.value);
 				loadTrainToSim();
 			});
 
@@ -269,7 +277,7 @@
 				type: "number", value: currentTrain.controls.accelleration, step: 1, min: 0
 			}, ["thin"]);
 			accelleration.addEventListener("change", () => {
-				currentTrain.controls.accelleration = accelleration.value;
+				currentTrain.controls.accelleration = Number(accelleration.value);
 				loadTrainToSim();
 			});
 
@@ -277,7 +285,7 @@
 				type: "number", value: currentTrain.controls.decelleration, step: 1, min: 0
 			}, ["thin"]);
 			decelleration.addEventListener("change", () => {
-				currentTrain.controls.decelleration = decelleration.value;
+				currentTrain.controls.decelleration = Number(decelleration.value);
 				loadTrainToSim();
 			});
 
@@ -285,7 +293,7 @@
 				type: "number", value: currentTrain.controls.min_power, step: 0.01, min: 0, max: 1
 			}, ["thin"]);
 			minPower.addEventListener("change", () => {
-				currentTrain.controls.min_power = minPower.value;
+				currentTrain.controls.min_power = Number(minPower.value);
 				loadTrainToSim();
 			});
 
@@ -293,7 +301,7 @@
 				type: "number", value: currentTrain.controls.max_power, step: 0.01, min: 0, max: 2
 			}, ["thin"]);
 			maxPower.addEventListener("change", () => {
-				currentTrain.controls.max_power = maxPower.value;
+				currentTrain.controls.max_power = Number(maxPower.value);
 				loadTrainToSim();
 			});
 
@@ -482,6 +490,7 @@
 				// createInput("Speed Per Motor Hz (-1 = N/A): ", speedPerMotorHz),
 				// createInput("Max Speed (km/h): ", maxSpeed),
 				createInput("Peak Point: ", peakPoint),
+				createInput("Rolling Resistance: ", rollingResistance),
 				createInput("Acceleration (km/h): ", accelleration),
 				createInput("Decelleration (km/h): ", decelleration),
 				createInput("Min Power: ", minPower),
@@ -708,10 +717,12 @@
 			useInterpolation: true
 		});
 
+		let prevFrame = 0;
+
 		let frequency = 0;
 		let power = 0;
 		let throttle = 0;
-		let prevFrame = 0;
+		let hill = 1;
 
 		throttleSlider.addEventListener("change", (e) => {
 			throttleSlider.value = 0;
@@ -728,7 +739,7 @@
 			const peakPoint = currentTrain.peak_point == null ? 50 : currentTrain.peak_point * currentTrain.speed_per_motor_hz;
 			const maxFrequency = currentTrain.max_speed == null ? 120 : currentTrain.max_speed * currentTrain.speed_per_motor_hz;
 			const accelleration = (throttle > 0 ? (1 - Math.max(0, frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
-			 * (controls.accelleration ?? 2.5) : controls.decelleration ?? 3) * throttle;
+			 * ((controls.accelleration ?? 2.5) * hill): (controls.decelleration ?? 3) / hill) * throttle;
 
 			frequency += deltaTime / 1000 * (accelleration * currentTrain.speed_per_motor_hz);
 
