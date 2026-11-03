@@ -47,6 +47,7 @@ async function setupDatabase(trainConfigSource) {
 /**
  * 
  * @param {String|Object} trainID - Unique name of the string used in the JSON DB 
+ * @returns {Object} - Unaltered train
  */
 function setTrain(trainID) {
 	if (typeof trainID == "string") {
@@ -54,6 +55,8 @@ function setTrain(trainID) {
 	} else {
 		currentTrainConfig = trainID;
 	}
+
+	const unaltered = structuredClone(currentTrainConfig);
 
 	let {
 		speed_per_motor_hz,
@@ -94,7 +97,7 @@ function setTrain(trainID) {
 		const { min_speed, max_speed, min_motor_frequency, max_motor_frequency, mode } = pulseConfig;
 		if (min_speed == null) checkNull("min_motor_frequency"); else checkNull("min_speed");
 		if (min_motor_frequency == null) pulseConfig.min_motor_frequency = min_speed * speed_per_motor_hz;
-		if (max_speed != null && max_motor_frequency == null ) pulseConfig.max_motor_frequency = max_speed * speed_per_motor_hz;
+		if (max_speed != null && max_motor_frequency == null) pulseConfig.max_motor_frequency = max_speed * speed_per_motor_hz;
 		checkNull("mode");
 		switch (mode) {
 			case "SYNC":
@@ -145,6 +148,7 @@ function setTrain(trainID) {
 	}
 
 	console.log("Loaded train " + (typeof trainID == "string" ? trainID : "from object"));
+	return unaltered;
 }
 
 /**
@@ -167,6 +171,7 @@ function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
 
 		if (absFrequency >= min_motor_frequency && absFrequency < max_motor_frequency) {
 			data = { pulses, mode, carrier_frequency, oscillation_frequency, power, frequency };
+			data.oscillation_function = null;
 			switch (mode) {
 				case "AUTO-SYNC":
 					{
@@ -239,13 +244,11 @@ function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
 						data.mode = "ASYNC";
 						break;
 					}
-				default:
-					data.oscillation_function = null;
-					break;
 			}
 			break;
 		}
 	}
+
 
 	setBulkParameters(data);
 	if (soundUpdateFunction != null) {

@@ -8,43 +8,36 @@
 		"pulsing": [
 			{
 				"min_motor_frequency": 0,
-				"max_motor_frequency": 7.2,
 				"mode": "ASYNC",
 				"carrier_frequency": 300
 			},
 			{
 				"min_motor_frequency": 7.2,
-				"max_motor_frequency": 8.6,
 				"mode": "SYNC",
 				"pulses": 21
 			},
 			{
 				"min_motor_frequency": 8.6,
-				"max_motor_frequency": 13,
 				"mode": "SYNC",
 				"pulses": 15
 			},
 			{
 				"min_motor_frequency": 13,
-				"max_motor_frequency": 18,
 				"mode": "SHE-PWM",
 				"pulses": 11
 			},
 			{
 				"min_motor_frequency": 18,
-				"max_motor_frequency": 25,
 				"mode": "SHE-PWM",
 				"pulses": 7
 			},
 			{
 				"min_motor_frequency": 25,
-				"max_motor_frequency": 32,
 				"mode": "SHE-PWM",
 				"pulses": 5
 			},
 			{
 				"min_motor_frequency": 32,
-				"max_motor_frequency": 45,
 				"mode": "SHE-PWM",
 				"pulses": 3
 			}
@@ -97,18 +90,15 @@
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
-		"speed_per_motor_hz": -1,
 		"pulsing": [
 			{
 				"mode": "ASYNC",
 				"carrier_frequency": 550,
-				"min_speed": 0,
-				"max_speed": 5
+				"min_speed": 0
 			},
 			{
 				"mode": "ASYNC-SWEEP",
 				"min_speed": 5,
-				"max_speed": 10,
 				"carrier_frequency": 400,
 				"min_carrier_frequency": 550,
 				"max_carrier_frequency": 1100
@@ -116,13 +106,11 @@
 			{
 				"mode": "ASYNC",
 				"min_speed": 10,
-				"max_speed": 20,
 				"carrier_frequency": 1100
 			},
 			{
 				"mode": "AUTO-SYNC",
 				"min_speed": 20,
-				"max_speed": 200,
 				"carrier_frequency": 400,
 				"min_pulses": 1,
 				"max_pulses": 211,
@@ -135,45 +123,31 @@
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
-		"speed_per_motor_hz": -1,
 		"pulsing": [
 			{
 				"mode": "ASYNC-STEP",
 				"min_motor_frequency": 0,
-				"max_motor_frequency": 8,
 				"carrier_frequencies": [73.42, 82.41, 87.31, 98, 110, 123.47, 130.81, 146.83, 164.81, 174.61, 196, 220, 246.94, 261.63, 293.66]
 			},
 			{
 				"mode": "ASYNC",
-				"min_speed": 0,
-				"max_speed": 0,
 				"carrier_frequency": 300,
-				"min_motor_frequency": 8,
-				"max_motor_frequency": 15
+				"min_motor_frequency": 8
 			},
 			{
 				"mode": "SYNC",
-				"min_speed": 0,
-				"max_speed": 0,
 				"pulses": 9,
-				"min_motor_frequency": 15,
-				"max_motor_frequency": 25
+				"min_motor_frequency": 15
 			},
 			{
 				"mode": "SYNC",
-				"min_speed": 0,
-				"max_speed": 0,
 				"pulses": 7,
-				"min_motor_frequency": 25,
-				"max_motor_frequency": 35
+				"min_motor_frequency": 25
 			},
 			{
 				"mode": "SYNC",
-				"min_speed": 0,
-				"max_speed": 0,
 				"pulses": 5,
-				"min_motor_frequency": 35,
-				"max_motor_frequency": 50
+				"min_motor_frequency": 35
 			}
 		]
 	},
@@ -181,13 +155,11 @@
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
-		"speed_per_motor_hz": -1,
 		"pulsing": [
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"carrier_frequency": 1500,
 				"min_speed": 0,
-				"max_speed": 40,
 				"oscillation_mode": "SAW-RISING",
 				"oscillation_frequency": 6.5,
 				"min_carrier_frequency": 550,
@@ -196,7 +168,6 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 40,
-				"max_speed": 70,
 				"carrier_frequency": 400,
 				"oscillation_mode": "SAW-RISING",
 				"oscillation_frequency": 6.5,
@@ -206,7 +177,6 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 70,
-				"max_speed": 100,
 				"carrier_frequency": 400,
 				"pulses": 3,
 				"oscillation_mode": "SAW-RISING",
@@ -220,25 +190,21 @@
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
-		"speed_per_motor_hz": -1,
 		"pulsing": [
 			{
 				"mode": "ASYNC",
 				"carrier_frequency": 400,
-				"min_speed": 0,
-				"max_speed": 5
+				"min_speed": 0
 			},
 			{
 				"mode": "ASYNC-SWEEP",
 				"min_speed": 5,
-				"max_speed": 10,
 				"min_carrier_frequency": 400,
 				"max_carrier_frequency": 500
 			},
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 10,
-				"max_speed": 12,
 				"oscillation_mode": "TRIANGLE",
 				"oscillation_frequency": 5,
 				"min_carrier_frequency": 500,
@@ -247,7 +213,6 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 12,
-				"max_speed": 14,
 				"oscillation_mode": "SQUARE",
 				"oscillation_frequency": 5,
 				"min_carrier_frequency": 500,
@@ -256,7 +221,6 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 14,
-				"max_speed": 16,
 				"oscillation_mode": "SAW-RISING",
 				"oscillation_frequency": 5,
 				"min_carrier_frequency": 500,
@@ -265,7 +229,6 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 16,
-				"max_speed": 18,
 				"oscillation_mode": "SAW-FALLING",
 				"oscillation_frequency": 5,
 				"min_carrier_frequency": 500,
@@ -274,7 +237,6 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 18,
-				"max_speed": 20,
 				"oscillation_mode": "SINE",
 				"oscillation_frequency": 5,
 				"min_carrier_frequency": 500,
@@ -283,7 +245,6 @@
 			{
 				"mode": "ASYNC-STEP",
 				"min_speed": 20,
-				"max_speed": 40,
 				"carrier_frequencies": [
 					739.99,
 					783.99,
@@ -295,13 +256,11 @@
 			{
 				"mode": "SYNC",
 				"min_speed": 40,
-				"max_speed": 45,
 				"pulses": 25
 			},
 			{
 				"mode": "AUTO-SYNC",
 				"min_speed": 45,
-				"max_speed": 50,
 				"min_pulses": 1,
 				"max_pulses": 99,
 				"pulse_step": 1,
@@ -310,7 +269,6 @@
 			{
 				"mode": "AUTO-SYNC",
 				"min_speed": 50,
-				"max_speed": 60,
 				"min_pulses": 1,
 				"max_pulses": 55,
 				"pulse_step": 2,
@@ -319,7 +277,6 @@
 			{
 				"mode": "AUTO-SYNC",
 				"min_speed": 60,
-				"max_speed": 100,
 				"min_pulses": 1,
 				"max_pulses": 55,
 				"pulse_step": 8,
@@ -331,13 +288,11 @@
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
-		"speed_per_motor_hz": -1,
 		"pulsing": [
 			{
 				"mode": "ASYNC",
 				"carrier_frequency": 400,
-				"min_motor_frequency": 0,
-				"max_motor_frequency": 20
+				"min_motor_frequency": 0
 			},
 			{
 				"mode": "AUTO-SYNC",
@@ -346,14 +301,12 @@
 				"max_pulses": 21,
 				"pulse_step": 2,
 				"max_switching_frequency": 400,
-				"min_motor_frequency": 20,
-				"max_motor_frequency": 50
+				"min_motor_frequency": 20
 			},
 			{
 				"mode": "SYNC",
 				"pulses": 1,
-				"min_motor_frequency": 50,
-				"max_motor_frequency": 100
+				"min_motor_frequency": 50
 			}
 		]
 	},
@@ -361,13 +314,11 @@
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
-		"speed_per_motor_hz": -1,
 		"pulsing": [
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"carrier_frequency": 1500,
 				"min_speed": 0,
-				"max_speed": 200,
 				"oscillation_mode": "TRIANGLE",
 				"oscillation_frequency": 120,
 				"min_carrier_frequency": 1200,

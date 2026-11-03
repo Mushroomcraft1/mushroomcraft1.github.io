@@ -132,7 +132,7 @@ function setBulkParameters(parameters) {
     if (parameters.pulses != null) setPulseCount(parameters.pulses);
     if (parameters.mode != null) pulsingMethod = parameters.mode;
     if (parameters.power != null) pulsingPower = parameters.power;
-    if (parameters.oscillation_function != null) oscillationFunction = eval(parameters.oscillation_function);
+    if (parameters.oscillation_function != null) oscillationFunction = eval(parameters.oscillation_function); else oscillationFunction = null;
 }
 
 function pulse(microsec, pwmMicrosec) {

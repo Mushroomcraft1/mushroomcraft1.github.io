@@ -23,7 +23,7 @@ let sineProgress = 0;
 let interpolationProgress = 0;
 
 const powerIncrementFactor = 0.1;
-const distortionFactor = 0.5;
+const distortionFactor = 0;
 
 let microsecPerSamples;
 let sampleRate;
@@ -146,7 +146,7 @@ class Distort extends AudioWorkletProcessor {
 
 		for (let i = 0; i < len; ++i) {
 			nowBuffering[i] = input[i] + Math.sin(sineStage * Math.PI * 2) * distortionFactor;
-			sineStage += sineFreq / (8 * sampleRate);
+			sineStage += sineFreq / (2 * sampleRate);
 			sineStage %= 1;
 		}
 	}
