@@ -105,9 +105,6 @@
 		</div>
 		<div class="info centre">
 			<div>Audio: <select id="audio">
-				<option value="24S">24kHz Single Phase</option>
-				<option value="48S">48kHz Single Phase</option>
-				<option value="96S">96kHz Single Phase</option>
 				<option value="24T">24kHz 3 Phase</option>
 				<option value="48T">48kHz 3 Phase</option>
 				<option value="96T">96kHz 3 Phase</option>
@@ -124,7 +121,7 @@
 			<button id="reset">Reset Speed</button>
 		</div>
 		<div class="editor right">
-			<button id="new">New Train</button><button id="save">Save Train</button><button id="generate-code">Generate Code</button><select id="load">
+			<button id="new">New Train</button><button id="save">JSON Editor</button><button id="generate-code">Generate Code</button><select id="load">
 
 			</select>
 			<br><br>
@@ -190,7 +187,11 @@
 		}
 
 		function loadTrainToSim() {
+			currentTrain.speed_per_motor_hz = (3.6 * Math.PI * currentTrain.wheel_diameter) 
+				/ ((currentTrain.motor_poles ?? 4) * (currentTrain.gear_ratio_motor_side / currentTrain.gear_ratio_wheel_side));
 			setTrain(structuredClone(currentTrain));
+			const display = document.getElementById("speed-per-motor-hz")
+			if (display != null) display.innerText = getTrainData().speed_per_motor_hz
 		}
 
 		function loadEditor(name, trainConfig) {
@@ -245,11 +246,6 @@
 			// 	if (speedPerMotorHz.value < 0) delete currentTrain.speed_per_motor_hz;
 			// 	loadTrainToSim();
 			// });
-
-			if (currentTrain.speed_per_motor_hz == null || currentTrain.speed_per_motor_hz < 0) {
-				currentTrain.speed_per_motor_hz = (3.6 * Math.PI * currentTrain.wheel_diameter) 
-					/ ((currentTrain.motor_poles ?? 4) * (currentTrain.gear_ratio_motor_side / currentTrain.gear_ratio_wheel_side));
-			}
 			
 			const maxSpeed = createElement("input", {
 				type: "number", value: currentTrain.max_speed, step: 1, min: 0
@@ -299,6 +295,10 @@
 			maxPower.addEventListener("change", () => {
 				currentTrain.controls.max_power = maxPower.value;
 				loadTrainToSim();
+			});
+
+			const speedPerMotorHzDisplay = createElement("div", {
+				id: "speed-per-motor-hz"
 			});
 
 			function addPulsingMode(idx) {
@@ -478,6 +478,7 @@
 				createInput("Name: ", nameValue),
 				createInput("Wheel Diameter (m): ", wheelDiameter),
 				createInput("Gear Ratio: ", gearRatio),
+				createInput("Speed Per Motor Hz: ", speedPerMotorHzDisplay),
 				// createInput("Speed Per Motor Hz (-1 = N/A): ", speedPerMotorHz),
 				// createInput("Max Speed (km/h): ", maxSpeed),
 				createInput("Peak Point: ", peakPoint),
@@ -524,17 +525,29 @@
 			copyButton.addEventListener("click", () => {
 				navigator.clipboard.writeText(displayArea.textContent);
 			});
+			return buttons;
 		}
 
 		document.getElementById("save").addEventListener("click", () => {
 			console.log("Saving " + trainName);
 			console.log(currentTrain);
-			const trainSave = {};
-			trainSave[trainName.toLowerCase().replaceAll(",", "-")] = currentTrain;
-			saveText(JSON.stringify(
+			const trainSave = structuredClone(currentTrain);
+			delete trainSave.speed_per_motor_hz;
+			const buttons = saveText(JSON.stringify(
 				trainSave,
 				null, "\t"
 			));
+
+			const loadButton = createElement("button", { textContent: "Load" });	
+			loadButton.addEventListener("click", () => {
+				try {
+					const json = JSON.parse(displayArea.value);
+					loadEditor("JSON", json);
+				} catch (err) {
+					alert(err);
+				}
+			});
+			buttons.appendChild(loadButton);
 		});
 
 		document.getElementById("generate-code").addEventListener("click", () => {
@@ -710,18 +723,19 @@
 			prevFrame = time;
 
 			throttle = Number(throttleSlider.value);
+			const controls = currentTrain.controls ?? {};
 
 			const peakPoint = currentTrain.peak_point == null ? 50 : currentTrain.peak_point * currentTrain.speed_per_motor_hz;
 			const maxFrequency = currentTrain.max_speed == null ? 120 : currentTrain.max_speed * currentTrain.speed_per_motor_hz;
 			const accelleration = (throttle > 0 ? (1 - Math.max(0, frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
-			 * (currentTrain.accelleration ?? 2.5) : currentTrain.decelleration ?? 3) * throttle;
+			 * (controls.accelleration ?? 2.5) : controls.decelleration ?? 3) * throttle;
 
 			frequency += deltaTime / 1000 * accelleration;
 
 			power = Math.abs(throttle)
-			 * Math.max(currentTrain.controls.min_power ?? 0.1,
+			 * Math.max(controls.min_power ?? 0.1,
 			   Math.min(1, frequency / peakPoint))
-			 * (currentTrain.controls.max_power ?? 1);
+			 * (controls.max_power ?? 1);
 			if (Math.abs(frequency) < 0.2) power = 0;
 			frequency = Math.max(0, frequency);
 

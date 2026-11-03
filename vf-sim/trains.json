@@ -4,7 +4,6 @@
 		"gear_ratio_motor_side": 13,
 		"gear_ratio_wheel_side": 2,
 		"motor_poles": 4,
-		"speed_per_motor_hz": 0.77,
 		"pulsing": [
 			{
 				"min_motor_frequency": 0,
@@ -46,8 +45,7 @@
 	"kiepe": {
 		"wheel_diameter": 0.640,
 		"gear_ratio_motor_side": 7,
-		"gear_ratio_wheel_side": 2,
-		"speed_per_motor_hz": 1,
+		"gear_ratio_wheel_side": 4,
 		"max_speed": 80,
 		"peak_point": 20,
 		"controls": {
