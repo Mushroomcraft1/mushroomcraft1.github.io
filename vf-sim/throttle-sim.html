@@ -730,7 +730,7 @@
 			const accelleration = (throttle > 0 ? (1 - Math.max(0, frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
 			 * (controls.accelleration ?? 2.5) : controls.decelleration ?? 3) * throttle;
 
-			frequency += deltaTime / 1000 * accelleration;
+			frequency += deltaTime / 1000 * (accelleration * currentTrain.speed_per_motor_hz);
 
 			power = Math.abs(throttle)
 			 * Math.max(controls.min_power ?? 0.1,
