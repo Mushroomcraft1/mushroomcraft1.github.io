@@ -1,0 +1,139 @@
+<html theme="dark">
+	<head>
+		<style>
+			:root {
+				color-scheme: dark;
+			}
+
+			body, html {
+				margin: none;
+				padding: none;
+				background-color: black;
+				color: yellow;
+				font: 1rem "Fira Sans", sans-serif;
+			}
+
+			canvas {
+				position: fixed;
+				width: 100%;
+				height: 25%;
+				bottom: 0;
+				left: 0;
+			}
+		</style>
+	</head>
+	<body>
+		Set the variable this.throttle in the console to control the simulator
+		<canvas id="canvas">
+			
+		</canvas>
+	</body>
+	<script type="module" src="./pulsing.js"></script>
+	<script type="module" src="./render.js"></script>
+	<script type="module" src="./sound.js"></script>
+	<script type="module" src="./interface.js"></script>
+	<script type="module">
+		import { setupDatabase, setTrain, setTrainSpeed, setSoundUpdateFunction, commandVF, getVFData, getTrainData, getAvailableTrains } from "./interface.js";
+		import { setSoundOptions, startSound, stopSound } from "./sound.js";
+		import { setCanvas, setRenderOptions, renderVisualisations } from "./render.js";
+
+		let currentTrain;
+
+		const canvas = document.getElementById("canvas");
+		const ctx = canvas.getContext("2d");
+
+		function clickFunction() { 
+			setTimeout(() => {
+				startSound()
+					.then((funct) => {
+						setSoundUpdateFunction(funct);
+					});
+				window.removeEventListener("pointerdown", clickFunction); 
+			}, 100);
+		}
+
+		// Start the sound once the mouse was pressed
+		window.addEventListener("pointerdown", clickFunction);
+
+		setCanvas(canvas, ctx);
+
+		setupDatabase("./trains.json")
+			.then(() => {
+				reset();
+				loop();
+			});
+		
+		// Single phase visualisation that takes up most of the canvas
+		setRenderOptions({
+			renderSinglePhase: true,
+			waveHeight: 0.4,
+			phase1Position: 0.5,
+			sampleRate: 40000,
+			samplesPerPixel: 1
+		});
+		setSoundOptions({
+			useInterpolation: true
+		});
+
+		let prevFrame = 0;
+
+		function reset() {
+			const trains = getAvailableTrains();
+			currentTrain = setTrain("kiepe");
+			currentTrain.speed_per_motor_hz = getTrainData().speed_per_motor_hz;
+				
+			globalThis.frequency = 0;
+			globalThis.power = 0;
+			globalThis.throttle = 0;
+			globalThis.hill = 1;
+		}
+
+		function loop() {
+			const time = performance.now();
+			const deltaTime = time - prevFrame;
+			prevFrame = time;
+
+			if (isNaN(globalThis.frequency)) {
+				reset();
+				console.error("Something is wrong, make sure no values are being undefined")
+			}
+
+			const controls = currentTrain.controls ?? {};
+
+			const peakPoint = currentTrain.peak_point == null ? 50 : currentTrain.peak_point * currentTrain.speed_per_motor_hz;
+			const maxFrequency = currentTrain.max_speed == null ? 120 : currentTrain.max_speed * currentTrain.speed_per_motor_hz;
+			const accelleration = (globalThis.throttle > 0 ? (1 - Math.max(0, globalThis.frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
+			 * ((controls.accelleration ?? 2.5) * globalThis.hill): (controls.decelleration ?? 3) / globalThis.hill) * globalThis.throttle;
+
+			globalThis.frequency += deltaTime / 1000 * (accelleration * currentTrain.speed_per_motor_hz);
+
+			globalThis.power = Math.abs(globalThis.throttle)
+			 * Math.max(controls.min_power ?? 0.1,
+			   Math.min(1, globalThis.frequency / peakPoint))
+			 * (controls.max_power ?? 1);
+			if (Math.abs(globalThis.frequency) < 0.2) globalThis.power = 0;
+			globalThis.frequency = Math.max(0, globalThis.frequency);
+
+			commandVF(globalThis.frequency, globalThis.power, deltaTime);
+			setSoundOptions({
+				volume: 0.75
+			});
+
+			// You can use or display these
+			const {
+				currentSpeed,
+				currentFrequency,
+				currentPower,
+				carrierFrequency,
+				pulses,
+				pulsingMode,
+			} = getVFData();
+
+			globalThis.speed = currentSpeed;
+
+			renderVisualisations();
+
+			requestAnimationFrame(loop);
+		};
+	</script>
+</html>

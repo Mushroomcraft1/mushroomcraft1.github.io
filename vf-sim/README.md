@@ -1,0 +1,2 @@
+# VF Simulator
+This project simulates the different pulsing patterns in VF (variable frequency) drives for 3 phase induction motors used in all sorts of industrian machinery (lifts, trains, roller coasters, pumps...)

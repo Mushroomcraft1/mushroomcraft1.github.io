@@ -1,9 +1,11 @@
-export { setupDatabase, setTrain, commandVF, getVFData, getTrainData, getAvailableTrains };
+export { setupDatabase, setTrain, commandVF, setTrainSpeed, setSoundUpdateFunction, getVFData, getTrainData, getAvailableTrains };
 import { setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod } from "./pulsing.js";
 
 let trainDB = new Map();
 
 let currentTrainConfig;
+let soundUpdateFunction;
+let prevTime = 0;
 
 /**
  * @param {Object} JSON 
@@ -45,6 +47,13 @@ async function setupDatabase(trainConfigSource) {
 }
 
 /**
+ * @param {Function} funct - Sound update function recieved from startSound call
+ */
+function setSoundUpdateFunction(funct) {
+	soundUpdateFunction = funct;
+}
+
+/**
  * 
  * @param {String|Object} trainID - Unique name of the string used in the JSON DB 
  * @returns {Object} - Unaltered train
@@ -83,7 +92,7 @@ function setTrain(trainID) {
 
 	if (speed_per_motor_hz == null || speed_per_motor_hz < 0) {
 		checkNull("wheel_diameter", "gear_ratio_motor_side", "gear_ratio_wheel_side");
-		speed_per_motor_hz = (3.6 * Math.PI * wheel_diameter) 
+		speed_per_motor_hz = (7.2 * Math.PI * wheel_diameter) 
 			/ ((motor_poles ?? 4) * (gear_ratio_motor_side / gear_ratio_wheel_side))
 	}
 
@@ -151,13 +160,46 @@ function setTrain(trainID) {
 	return unaltered;
 }
 
+
+
 /**
- * @param {Float} frequency 
- * @param {Float} power 
- * @param {Function} soundUpdateFunction 
- * @param {Float} soundUpdateFunction 
+ * @param {Float} speed - Speed (km/h) at which to simulate the sound of the VF
  */
-function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
+function setTrainSpeed(speed) {
+	const time = performance.now();
+	const deltaTime = Math.min(100, time - prevTime);
+
+	if (currentTrainConfig == null) throw "No train selected"
+
+	const {
+		peak_point,
+		speed_per_motor_hz,
+		controls
+	} = currentTrainConfig;
+
+	if (speed_per_motor_hz == null) throw "speed_per_motor_hz is null (does the train config have a gear ratio and wheel diameter?)"
+
+	const frequency = Math.abs(speed * speed_per_motor_hz);
+
+	const peakPoint = peak_point == null ? 50 : peak_point * speed_per_motor_hz;
+
+	let power = Math.max(controls?.min_power ?? 0.1,
+			   Math.min(1, frequency / peakPoint))
+			 * (controls?.max_power ?? 1);
+	
+	if (frequency < 0.1) power = 0;
+
+	commandVF(frequency, power, deltaTime);
+	
+	prevTime = time;
+}
+
+/**
+ * @param {Float} frequency - Frequency for VF to synthasise
+ * @param {Float} power - Power level for the current pulsing mode 
+ * @param {Float|null} deltaTime - Time to be taken in the sound sim to transition to the new frequency and power, if not given, interpolation won't be used
+ */
+function commandVF(frequency, power, deltaTime) {
 	if (currentTrainConfig == null) throw "No train selected"
 
 	let data = { mode: "OFF", frequency: 0, power: 0 };
@@ -224,6 +266,11 @@ function commandVF(frequency, power, soundUpdateFunction, deltaTime) {
 								funct = `(microsec) => {
 									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
 									return timeFactor <= 0.5 ? ${min_carrier_frequency} : ${max_carrier_frequency};
+								}`
+								break
+							case "RANDOM":
+								funct = `(microsec) => {
+									return ${min_carrier_frequency} + Math.random() * ${max_carrier_frequency - min_carrier_frequency};
 								}`
 								break
 						}

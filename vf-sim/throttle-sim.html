@@ -139,14 +139,12 @@
 	<script type="module" src="./sound.js"></script>
 	<script type="module" src="./interface.js"></script>
 	<script type="module">
-		import { setupDatabase, setTrain, commandVF, getVFData, getTrainData, getAvailableTrains } from "./interface.js";
+		import { setupDatabase, setTrain, setTrainSpeed, setSoundUpdateFunction, commandVF, getVFData, getTrainData, getAvailableTrains } from "./interface.js";
 		import { setSoundOptions, startSound, stopSound } from "./sound.js";
 		import { setCanvas, setRenderOptions, renderVisualisations } from "./render.js";
 
 		let currentTrain = { controls: {} };
 		let trainName = "";
-
-		let soundUpdateFunction;
 
 		const canvas = document.getElementById("canvas");
 		const ctx = canvas.getContext("2d");
@@ -155,8 +153,7 @@
 			setTimeout(() => {
 				startSound()
 					.then((funct) => {
-						console.log(funct);
-						soundUpdateFunction = funct;
+						setSoundUpdateFunction(funct);
 					});
 				window.removeEventListener("pointerdown", clickFunction); 
 			}, 100);
@@ -187,7 +184,7 @@
 		}
 
 		function loadTrainToSim() {
-			currentTrain.speed_per_motor_hz = (3.6 * Math.PI * currentTrain.wheel_diameter) 
+			currentTrain.speed_per_motor_hz = (7.2 * Math.PI * currentTrain.wheel_diameter) 
 				/ ((currentTrain.motor_poles ?? 4) * (currentTrain.gear_ratio_motor_side / currentTrain.gear_ratio_wheel_side));
 			setTrain(structuredClone(currentTrain));
 			const display = document.getElementById("speed-per-motor-hz")
@@ -328,7 +325,7 @@
 					}));
 				}
 				const oscillationMode = createElement("select", { "data-value": "oscillation_mode" });
-				for (const mode of ["TRIANGLE", "SINE", "SQUARE", "SAW-RISING", "SAW-FALLING"]) {
+				for (const mode of ["TRIANGLE", "SINE", "SQUARE", "SAW-RISING", "SAW-FALLING", "RANDOM"]) {
 					oscillationMode.appendChild(createElement("option", {
 						textContent: mode,
 						value: mode
@@ -750,7 +747,7 @@
 			if (Math.abs(frequency) < 0.2) power = 0;
 			frequency = Math.max(0, frequency);
 
-			commandVF(frequency, power, soundUpdateFunction, deltaTime);
+			commandVF(frequency, power, deltaTime);
 			setSoundOptions({
 				volume: Number(volumeSlider.value)
 			});
