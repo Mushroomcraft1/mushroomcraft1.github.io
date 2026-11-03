@@ -87,8 +87,8 @@ function renderVisualisations() {
 		y = registerValues & high1 ? phase1top : registerValues & low1 ? phase1bottom : phase1Height;
 		
 		if (registerValues != prev) {
-			visulisationCanvasCtx.lineTo(x, prevHeight)
-			visulisationCanvasCtx.lineTo(x, y)
+			visulisationCanvasCtx.lineTo(Math.floor(x) + 0.5, prevHeight)
+			visulisationCanvasCtx.lineTo(Math.floor(x) + 0.5, y)
 		}
 		
 		prev = registerValues;
@@ -111,8 +111,8 @@ function renderVisualisations() {
 			y = registerValues & high2 ? phase2top : registerValues & low2 ? phase2bottom : phase2Height;
 
 			if (registerValues != prev) {
-				visulisationCanvasCtx.lineTo(x, prevHeight)
-				visulisationCanvasCtx.lineTo(x, y)
+				visulisationCanvasCtx.lineTo(Math.floor(x) + 0.5, prevHeight)
+				visulisationCanvasCtx.lineTo(Math.floor(x) + 0.5, y)
 			}
 
 			prev = registerValues;
@@ -133,8 +133,8 @@ function renderVisualisations() {
 			y = registerValues & high3 ? phase3top : registerValues & low3 ? phase3bottom : phase3Height;
 
 			if (registerValues != prev) {
-				visulisationCanvasCtx.lineTo(x, prevHeight)
-				visulisationCanvasCtx.lineTo(x, y)
+				visulisationCanvasCtx.lineTo(Math.floor(x) + 0.5, prevHeight)
+				visulisationCanvasCtx.lineTo(Math.floor(x) + 0.5, y)
 			}
 
 			prev = registerValues;
