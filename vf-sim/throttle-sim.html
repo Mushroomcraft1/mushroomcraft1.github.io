@@ -1,780 +1,1378 @@
-<html theme="dark">
-	<head>
-		<style>
-			:root {
-				color-scheme: dark;
-			}
-
-			body, html {
-				margin: none;
-				padding: none;
-				background-color: black;
-				color: yellow;
-				font: 1rem "Fira Sans", sans-serif;
-			}
-			canvas {
-				position: fixed;
-				width: 100%;
-				height: 25%;
-				bottom: 0;
-			}
-			
-			.thin {
-				width: 4rem;
-			}
-
-			.info {
-				position: absolute;
-			}
-
-			#throttle {
-				position: absolute;
-				top: 50%;
-				transform: rotate(-90deg);
-			}
-
-			.throttle {
-				position: absolute;
-				top: 50%;
-			}
-
-			.editor {
-				position: absolute;
-				top: 5rem;
-			}
-
-			.right {
-				right: 0;
-				margin-right: 0.5rem;
-			}
-
-			.centre {
-				left: 30%;
-				margin-right: 0.5rem;
-			}
-
-			.pulsing-element {
-				margin-top: 1rem;
-			}
-
-			.pulsing {
-				margin-top: 1rem;
-				max-height: calc(75vh - 25rem);
-				overflow-y: scroll;
-			}
-
-			button {
-				margin-right: 0.5rem
-			}
-
-			#text {
-				position: absolute;
-				top: 5vw;
-				left: 5vw;
-				width: 90vw;
-				height: calc(100vh - 10vw);
-				overflow-y: scroll;
-				background-color: #333a;
-				border-radius: 1vw;
-			}
-
-			#reset {
-				position: absolute;
-				top: 0;
-				left: 100px;
-			}
-
-			.buttons {
-				position: absolute;
-				display: flex;
-				flex-direction: row;
-				left: 0;
-				bottom: calc(2.5vw - 1rem);
-				width: 100%;
-				height: 2rem;
-				overflow: hidden;
-				justify-content: center;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="info">
-			<div>Frequency:  <span id="sine-frequency-val"></span> Hz</div>
-			<div>Power:  <span id="power-val"></span> %</div>
-			<div>Speed:  <span id="speed-val"></span> km/h</div>
-		</div>
-		<div class="info centre">
-			<div>Audio: <select id="audio">
-				<option value="24T">24kHz 3 Phase</option>
-				<option value="48T">48kHz 3 Phase</option>
-				<option value="96T">96kHz 3 Phase</option>
-			</select></div>
-			<div><input type="range" min="0" max="1.5" step="0.05" id="volume"></input>Volume:  <span id="volume-val"></span> %</div>
-		</div>
-		<div class="info right">
-			<div>Mode: <span id="method"></span></div>
-			<div>Carrier Frequency:  <span id="carrier-frequency-val"></span> Hz</div>
-			<div>Pulses:  <span id="pulses-val"></span></div>
-		</div>
-		<div class="throttle">
-			<input id="throttle" type="range" min="-1" max="1" step="0.01"></input>
-			<button id="reset">Reset Speed</button>
-		</div>
-		<div class="editor right">
-			<button id="new">New Train</button><button id="save">JSON Editor</button><button id="generate-code">Generate Code</button><select id="load">
-
-			</select>
-			<br><br>
-			<div id="train-config">
-				
-			</div>
-		</div>
-		<canvas id="canvas">
-			
-		</canvas>
-		<textarea id="text" hidden="true"></textarea>
-	</body>
-	<script type="module" src="./pulsing.js"></script>
-	<script type="module" src="./render.js"></script>
-	<script type="module" src="./sound.js"></script>
-	<script type="module" src="./interface.js"></script>
-	<script type="module">
-		import { setupDatabase, setTrain, setTrainSpeed, setSoundUpdateFunction, commandVF, getVFData, getTrainData, getAvailableTrains } from "./interface.js";
-		import { setSoundOptions, startSound, stopSound } from "./sound.js";
-		import { setCanvas, setRenderOptions, renderVisualisations } from "./render.js";
-
-		let currentTrain = { controls: {} };
-		let trainName = "";
-
-		const canvas = document.getElementById("canvas");
-		const ctx = canvas.getContext("2d");
-
-		function clickFunction() { 
-			setTimeout(() => {
-				startSound()
-					.then((funct) => {
-						setSoundUpdateFunction(funct);
-					});
-				window.removeEventListener("pointerdown", clickFunction); 
-			}, 100);
-		}
-
-		window.addEventListener("pointerdown", clickFunction);
-
-		const throttleSlider = document.getElementById("throttle");
-		const resetButton = document.getElementById("reset");
-
-		resetButton.addEventListener("pointerdown", () => {
-			frequency = 0;
-			power = 0;
-			throttle = 0;
-		})
-
-		function createElement(elementType, properties, classes) {
-			const element = Object.assign(document.createElement(elementType), properties);
-			if (classes != null) element.classList.add(...classes);
-			return element;
-		}
-
-		function createInput(content, element) {
-			const label = document.createElement("div");
-			label.appendChild(document.createTextNode(content));
-			label.appendChild(element);
-			return label;
-		}
-
-		function loadTrainToSim() {
-			currentTrain.speed_per_motor_hz = (7.2 * Math.PI * currentTrain.wheel_diameter) 
-				/ ((currentTrain.motor_poles ?? 4) * (currentTrain.gear_ratio_motor_side / currentTrain.gear_ratio_wheel_side));
-			setTrain(structuredClone(currentTrain));
-			const display = document.getElementById("speed-per-motor-hz")
-			if (display != null) display.innerText = getTrainData().speed_per_motor_hz
-		}
-
-		function loadEditor(name, trainConfig) {
-			frequency = 0;
-			power = 0;
-			throttle = 0;
-			trainName = name;
-			currentTrain = trainConfig;
-			let pulsingIdx = 0;
-			const indicies = [];
-
-			const editor = document.getElementById("train-config");
-			editor.replaceChildren();
-
-			const nameValue = createElement("input", {
-				type: "text", value: trainName
-			});
-			nameValue.addEventListener("change", () => {
-				trainName = nameValue.value;
-			});
-
-			const wheelDiameter = createElement("input", {
-				type: "number", value: currentTrain.wheel_diameter, step: 0.01, min: 0.1 
-			}, ["thin"]);
-			wheelDiameter.addEventListener("change", () => {
-				currentTrain.wheel_diameter = Number(wheelDiameter.value);
-				loadTrainToSim();
-			});
-			
-			const gearRatio = createElement("span");
-			const gearRatioMotorSide = createElement("input", {
-				type: "number", value: currentTrain.gear_ratio_motor_side, step: 1, min: 0.1 
-			}, ["thin"]);
-			gearRatioMotorSide.addEventListener("change", () => {
-				currentTrain.gear_ratio_motor_side = Number(gearRatioMotorSide.value);
-				loadTrainToSim();
-			});
-			const gearRatioWheelSide = createElement("input", {
-				type: "number", value: currentTrain.gear_ratio_wheel_side, step: 1, min: 0.1 
-			}, ["thin"]);
-			gearRatioWheelSide.addEventListener("change", () => {
-				currentTrain.gear_ratio_wheel_side = Number(gearRatioWheelSide.value);
-				loadTrainToSim();
-			});
-			gearRatio.append(gearRatioMotorSide, document.createTextNode(" : "), gearRatioWheelSide);
-			
-			// const speedPerMotorHz = createElement("input", {
-			// 	type: "number", value: currentTrain.speed_per_motor_hz, step: 0.01, min: -1 
-			// }, ["thin"]);
-			// speedPerMotorHz.addEventListener("change", () => {
-			// 	currentTrain.speed_per_motor_hz = speedPerMotorHz.value;
-			// 	if (speedPerMotorHz.value < 0) delete currentTrain.speed_per_motor_hz;
-			// 	loadTrainToSim();
-			// });
-			
-			const maxSpeed = createElement("input", {
-				type: "number", value: currentTrain.max_speed, step: 1, min: 0
-			}, ["thin"]);
-			maxSpeed.addEventListener("change", () => {
-				currentTrain.max_speed = Number(maxSpeed.value);
-				loadTrainToSim();
-			});
-
-			const peakPoint = createElement("input", {
-				type: "number", value: currentTrain.peak_point, step: 1, min: 0
-			}, ["thin"]);
-			peakPoint.addEventListener("change", () => {
-				currentTrain.peak_point = Number(peakPoint.value);
-				loadTrainToSim();
-			});
-
-			const rollingResistance = createElement("input", {
-				type: "number", value: currentTrain.rolling_resistance, step: 0.01, min: 0
-			}, ["thin"]);
-			rollingResistance.addEventListener("change", () => {
-				currentTrain.rolling_resistance = Number(rollingResistance.value);
-				loadTrainToSim();
-			});
-
-			if (currentTrain.controls == null) currentTrain.controls = {};
-
-			const accelleration = createElement("input", {
-				type: "number", value: currentTrain.controls.accelleration, step: 1, min: 0
-			}, ["thin"]);
-			accelleration.addEventListener("change", () => {
-				currentTrain.controls.accelleration = Number(accelleration.value);
-				loadTrainToSim();
-			});
-
-			const decelleration = createElement("input", {
-				type: "number", value: currentTrain.controls.decelleration, step: 1, min: 0
-			}, ["thin"]);
-			decelleration.addEventListener("change", () => {
-				currentTrain.controls.decelleration = Number(decelleration.value);
-				loadTrainToSim();
-			});
-
-			const minPower = createElement("input", {
-				type: "number", value: currentTrain.controls.min_power, step: 0.01, min: 0, max: 1
-			}, ["thin"]);
-			minPower.addEventListener("change", () => {
-				currentTrain.controls.min_power = Number(minPower.value);
-				loadTrainToSim();
-			});
-
-			const maxPower = createElement("input", {
-				type: "number", value: currentTrain.controls.max_power, step: 0.01, min: 0, max: 2
-			}, ["thin"]);
-			maxPower.addEventListener("change", () => {
-				currentTrain.controls.max_power = Number(maxPower.value);
-				loadTrainToSim();
-			});
-
-			const speedPerMotorHzDisplay = createElement("div", {
-				id: "speed-per-motor-hz"
-			});
-
-			function addPulsingMode(idx) {
-				if (typeof idx != "number") idx = indicies.length;
-				const ID = pulsingIdx++;
-				if (idx < indicies.length) {
-					indicies.splice(idx, 0, ID);
-				} else {
-					indicies.push(ID);
-				}
-				let pulsingMode = currentTrain.pulsing[idx] ?? { };
-				if (pulsingMode.min_motor_frequency != null) pulsingMode.min_speed = pulsingMode.min_motor_frequency * currentTrain.speed_per_motor_hz;
-				const newPulsingMode = createElement("div", {}, ["pulsing-element"]);
-				const modes = createElement("select");
-				for (const mode of ["ASYNC", "ASYNC-STEP", "ASYNC-OSCILLATING", "ASYNC-SWEEP", "SYNC", "AUTO-SYNC", "SHE-PWM"]) {
-					modes.appendChild(createElement("option", {
-						textContent: mode,
-						value: mode
-					}));
-				}
-				const oscillationMode = createElement("select", { "data-value": "oscillation_mode" });
-				for (const mode of ["TRIANGLE", "SINE", "SQUARE", "SAW-RISING", "SAW-FALLING", "RANDOM"]) {
-					oscillationMode.appendChild(createElement("option", {
-						textContent: mode,
-						value: mode
-					}));
-				};
-				function updateValue(event) {
-					const element = event.srcElement;
-					const key = element["data-value"];
-					switch (key) {
-						case "carrier_frequencies":
-							pulsingMode[key] = element.value.split(/[, ]/).filter(e => e != "").map(Number);
-							break;
-						case "oscillation_mode":
-							pulsingMode[key] = element.value;
-							break;
-						default:
-							pulsingMode[key] = Number(element.value);
-					}
-					if (pulsingMode[key] < 0) delete pulsingMode[key];
-					currentTrain.pulsing[idx] = pulsingMode;
-					loadTrainToSim();
-				}
-				const variables = [
-					createElement("input", { "data-value": "min_speed", type: "number", value: 0, step: 0.1, min: 0 }, ["thin"]),
-					// createElement("input", { "data-value": "max_speed", type: "number", value: 0, step: 0.1, min: -1 }, ["thin"]),
-					// createElement("input", { "data-value": "min_motor_frequency", type: "number", value: -1, step: 0.1, min: -1 }, ["thin"]),
-					// createElement("input", { "data-value": "max_motor_frequency", type: "number", value: -1, step: 0.1, min: -1 }, ["thin"]),
-					oscillationMode,
-					createElement("input", { "data-value": "oscillation_frequency", type: "number", value: 5, step: 0.1, min: 0.1 }, ["thin"]),
-					createElement("input", { "data-value": "carrier_frequency", type: "number", value: 400, step: 10, min: 50 }, ["thin"]),
-					createElement("input", { "data-value": "carrier_frequencies", type: "string", value: "300, 350, 400, 450, 500", step: 10, min: 50 }),
-					createElement("input", { "data-value": "min_carrier_frequency", type: "number", value: 400, step: 10, min: 50 }, ["thin"]),
-					createElement("input", { "data-value": "max_carrier_frequency", type: "number", value: 500, step: 10, min: 50 }, ["thin"]),
-					createElement("input", { "data-value": "pulses", type: "number", value: 21, step: 1, min: 1 }, ["thin"]),
-					createElement("input", { "data-value": "min_pulses", type: "number", value: 1, step: 1, min: 1 }, ["thin"]),
-					createElement("input", { "data-value": "max_pulses", type: "number", value: 21, step: 1, min: 1 }, ["thin"]),
-					createElement("input", { "data-value": "pulse_step", type: "number", value: 2, step: 1, min: 1 }, ["thin"]),
-					createElement("input", { "data-value": "max_switching_frequency", type: "number", value: 400, step: 10, min: 50 }, ["thin"]),
-				];
-				function updateVisibilities(visible) {
-					let i = 0;
-					for (const element of variables) {
-						element.parentElement.hidden = !visible[i];
-						if (visible[i]) {
-							element.dispatchEvent(new Event("change"));
-						}
-						++i;
-					}
-				}
-				modes.addEventListener("change", () => {
-					pulsingMode.mode = modes.value;
-					switch (modes.value) {
-						case "ASYNC":
-							{
-								updateVisibilities([true, false, false, true, false, false, false, false, false, false, false, false]);
-								break;
-							}
-						case "ASYNC-STEP":
-							{
-								updateVisibilities([true, false, false, false, true, false, false, false, false, false, false, false]);
-								break;
-							}
-						case "ASYNC-OSCILLATING":
-							{
-								updateVisibilities([true, true, true, false, false, true, true, false, false, false, false, false]);
-								break;
-							}
-						case "ASYNC-SWEEP":
-							{
-								updateVisibilities([true, false, false, false, false, true, true, false, false, false, false, false]);
-								break;
-							}
-						case "AUTO-SYNC":
-							{
-								updateVisibilities([true, false, false, false, false, false, false, false, true, true, true, true]);
-								break;
-							}
-						case "SYNC":
-							{
-								updateVisibilities([true, false, false, false, false, false, false, true, false, false, false, false]);
-								break;
-							}
-						case "SHE-PWM":
-							{
-								updateVisibilities([true, false, false, false, false, false, false, true, false, false, false, false]);
-								break;
-							}
-					}
-					currentTrain.pulsing[idx] = pulsingMode;
-					loadTrainToSim();
-				});
-				newPulsingMode.appendChild(
-					createInput("Mode: ", modes),
-				);
-				const texts = [
-					"Start Speed (km/h): ",
-					// "Max Speed (km/h): ",
-					// "Min Motor Frequency (Hz, -1 = N/A): ",
-					// "Max Motor Frequency (Hz, -1 = N/A): ",
-					"Oscillation Mode: ",
-					"Oscilaltion Frequency (Hz): ",
-					"Carrier Frequency (Hz): ",
-					"Carrier Frequencies (Hz): ",
-					"Min Carrier Frequency (Hz): ",
-					"Max Carrier Frequency (Hz): ",
-					"Pulses: ",
-					"Min Pulses: ",
-					"Max Pulses: ",
-					"Pulse Step: ",
-					"Max Switching Frequency: "
-				];
-				for (const element of variables) {
-					const key = element["data-value"];
-					if (pulsingMode[key] != null) element.value = pulsingMode[key];
-					element.addEventListener("change", updateValue);
-					newPulsingMode.appendChild(createInput(texts.shift(), element));
-				}
-				oscillationMode.addEventListener("change", updateValue)
-				const deleteMode = createElement("button", {
-					textContent: "Delete"
-				});
-				const insertMode = createElement("button", {
-					textContent: "Insert Before"
-				});
-				deleteMode.addEventListener("click", () => {
-					pulsing.removeChild(newPulsingMode);
-					let idx = -1;
-					for (let i = 0; i < indicies.length; ++i) if (indicies[i] == ID) idx = i;
-					if (idx >= 0) {
-						indicies.splice(idx, 1);
-						currentTrain.pulsing.splice(idx, 1);
-						loadTrainToSim();
-					}
-				});
-				insertMode.addEventListener("click", () => {
-					addPulsingMode(idx);
-				});
-				newPulsingMode.append(deleteMode, insertMode);
-				pulsing.appendChild(newPulsingMode);
-				if (idx < indicies.length) {
-					pulsing.moveBefore(newPulsingMode, pulsing.children[idx]);
-				}
-				modes.value = pulsingMode.mode ?? "ASYNC";
-				modes.dispatchEvent(new Event("change"));
-				currentTrain.pulsing[idx] = pulsingMode;
-			}
-
-			const pulsing = createElement("div", {}, ["pulsing"]);
-			const addPulsing = createElement("button", { textContent: "Add Pulsing" });
-			addPulsing.addEventListener("click", addPulsingMode);
-
-			for (let i = 0; i < currentTrain.pulsing.length; ++i) addPulsingMode(i);
-
-			editor.replaceChildren(
-				createInput("Name: ", nameValue),
-				createInput("Wheel Diameter (m): ", wheelDiameter),
-				createInput("Gear Ratio: ", gearRatio),
-				createInput("Speed Per Motor Hz: ", speedPerMotorHzDisplay),
-				// createInput("Speed Per Motor Hz (-1 = N/A): ", speedPerMotorHz),
-				// createInput("Max Speed (km/h): ", maxSpeed),
-				createInput("Peak Point: ", peakPoint),
-				createInput("Rolling Resistance: ", rollingResistance),
-				createInput("Acceleration (km/h): ", accelleration),
-				createInput("Decelleration (km/h): ", decelleration),
-				createInput("Min Power: ", minPower),
-				createInput("Max Power: ", maxPower),
-				createInput("Pulsing: ", addPulsing),
-				pulsing
-			);
-			loadTrainToSim();
-		}
-
-		document.getElementById("new").addEventListener("click", () => {
-			trainName = "New Train";
-			loadEditor("New Train", {
-				wheel_diameter: 0.84,
-				gear_ratio_motor_side: 6,
-				gear_ratio_wheel_side: 1,
-				pulsing: [
-					{
-						mode: "ASYNC",
-						carrier_frequency: 1500,
-						min_speed: 0
-					}
-				]
-			});
-		});
-
-		const displayArea = document.getElementById("text");
-
-		function saveText(text) {
-			displayArea.hidden = false;
-			displayArea.textContent = text;
-			const buttons = createElement("div", {}, ["buttons"]);
-			const closeButton = createElement("button", { textContent: "Close" });
-			const copyButton = createElement("button", { textContent: "Copy" });
-			buttons.append(copyButton, closeButton);
-			document.body.appendChild(buttons);
-			closeButton.addEventListener("click", () => {
-				displayArea.hidden = true;
-				buttons.remove();
-			});
-			copyButton.addEventListener("click", () => {
-				navigator.clipboard.writeText(displayArea.textContent);
-			});
-			return buttons;
-		}
-
-		document.getElementById("save").addEventListener("click", () => {
-			console.log("Saving " + trainName);
-			console.log(currentTrain);
-			const trainSave = structuredClone(currentTrain);
-			delete trainSave.speed_per_motor_hz;
-			const buttons = saveText(JSON.stringify(
-				trainSave,
-				null, "\t"
-			));
-
-			const loadButton = createElement("button", { textContent: "Load" });	
-			loadButton.addEventListener("click", () => {
-				try {
-					const json = JSON.parse(displayArea.value);
-					loadEditor("JSON", json);
-				} catch (err) {
-					alert(err);
-				}
-			});
-			buttons.appendChild(loadButton);
-		});
-
-		document.getElementById("generate-code").addEventListener("click", () => {
-			let frequencies = ``;
-			let ifStatements = ``;
-			loadTrainToSim();
-			const parsedTrain = getTrainData();
-			let idx = 0;
-			let frequenciesVariableIdx = 0;
-			for (const pulsing of parsedTrain.pulsing) {
-				if (++idx >= parsedTrain.pulsing.length) {
-					ifStatements += `{\n`; 
-				} else {
-					ifStatements += `if (absSineFreq < (float)(${pulsing.max_motor_frequency})) {\n`;
-				}
-
-				switch (pulsing.mode) {
-					case "ASYNC":
-						{
-							ifStatements += `\tswitchingMode = ASYNC;\n\tPWMfreq = (float)(${pulsing.carrier_frequency});\n`;
-							break;
-						}
-					case "ASYNC-STEP":
-						{
-							const len = pulsing.carrier_frequencies.length;
-							frequencies += `float frequencies${++frequenciesVariableIdx}[] = {${pulsing.carrier_frequencies.join(", ")}};\n\n`;
-							ifStatements += `\tswitchingMode = ASYNC;\n\tPWMfreq = frequencies${frequenciesVariableIdx}[min(${len}, (int)((absSineFreq - ${pulsing.min_motor_frequency})`
-							+ ` / ${pulsing.max_motor_frequency - pulsing.min_motor_frequency} * (float)(${len})))];\n`
-							break;
-						}
-					case "ASYNC-SWEEP":
-						{
-							const scalar = (pulsing.max_carrier_frequency - pulsing.min_carrier_frequency)
-							 / (pulsing.max_motor_frequency - pulsing.min_motor_frequency);
-							ifStatements += `\tswitchingMode = ASYNC;\n\t`
-							+ `PWMfreq = min(max(absSineFreq * ${scalar} + ${pulsing.min_carrier_frequency - scalar * pulsing.min_motor_frequency}, `
-							+ `${pulsing.min_carrier_frequency}), ${pulsing.max_carrier_frequency});\n`;
-							break;
-						}
-					case "ASYNC-OSCILLATING":
-						{
-							let oscillation = ``;
-
-							switch (pulsing.oscillation_mode) {
-								case "TRIANGLE":
-									oscillation = `float factor = timeFactor >= 0.5f ? 2.0f - 2.0f * timeFactor : 2.0f * timeFactor;\n\t`
-									+ `PWMfreq = (float)(${pulsing.max_carrier_frequency - pulsing.min_carrier_frequency} `
-									+ `* factor + ${pulsing.min_carrier_frequency});`;
-									break;
-								case "SAW-RISING":
-									oscillation = `PWMfreq = (float)(${pulsing.max_carrier_frequency - pulsing.min_carrier_frequency} `
-									+ `* timeFactor + ${pulsing.min_carrier_frequency});`;
-									break;
-								case "SAW-FALLING":
-									oscillation = `PWMfreq = (float)(${pulsing.max_carrier_frequency - pulsing.min_carrier_frequency} `
-									+ `* (1.0f - timeFactor) + ${pulsing.min_carrier_frequency});`;
-									break;
-								case "SINE":
-									oscillation = `float factor = sin(timeFactor * tau) / 2.0f + 0.5f;\n\t`
-									+ `PWMfreq = (float)(${pulsing.max_carrier_frequency - pulsing.min_carrier_frequency} `
-									+ `* factor + ${pulsing.min_carrier_frequency});`;
-									break;
-								case "SQUARE":
-									oscillation = `PWMfreq = timeFactor <= 0.5f ? ${pulsing.min_carrier_frequency} : ${pulsing.max_carrier_frequency};`;
-									break;
-							}
-
-							ifStatements += `\tswitchingMode = ASYNC;\n\t`
-							+ `float timeFactor = fmod((float)(rawMicroSec % 1000000) / 1000000.0f, `
-							+ `${1 / pulsing.oscillation_frequency}) * ${pulsing.oscillation_frequency};\n\t${oscillation}\n`
-							break;
-						}
-					case "SYNC":
-						{
-							ifStatements += `\tswitchingMode = SYNC;\n\tnoOfSwitches = ${Math.floor(pulsing.pulses * 4)};\n`;
-							break;
-						}
-					case "AUTO-SYNC":
-						{
-							let equation = `(int)(${pulsing.max_switching_frequency} / (absSineFreq * ${2 * pulsing.pulse_step}))`
-							if ((pulsing.min_pulses & 1) && (pulsing.pulse_step & 1) == 0) equation = `(${equation} | 1)`; 
-							ifStatements += `\tswitchingMode = SYNC;\n\tnoOfSwitches = min(${Math.floor(pulsing.max_pulses * 4)},`
-							+ ` max(${Math.floor(pulsing.min_pulses * 4)}, ${equation} * 4.0f));\n`;
-							break;
-						}
-				}
-
-				if (idx < parsedTrain.pulsing.length) {
-					ifStatements += `} else `;
-				} else {
-					ifStatements += `}\n`;
-				}
-			}
-			let code = `${frequencies}sineFreq += throttle;\nfloat absSineFreq = abs(sineFreq);\npower = max(0.3f, min(1.0f, absSineFreq / 50.0f));\n\n`
-			+ `${ifStatements}\n\nsineFreqTime = 1000000.0f / min(50, absSineFreq);\nsineFreqTimeInt = (unsigned long)sineFreqTime;\n`
-			+ `PWMfreqTime = 1000000.0f / PWMfreq;\nPWMfreqTimeInt = (unsigned long)PWMfreqTime;`;
-			saveText(code);
-		});
-
-		const frequencyElement = document.getElementById("sine-frequency-val");
-		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
-		const speedElement = document.getElementById("speed-val");
-		const powerElement = document.getElementById("power-val");
-		const pulsesElement = document.getElementById("pulses-val");
-
-		const audioOptionsValue = document.getElementById("audio");
-		const methodText = document.getElementById("method");
-
-		const volumeSlider = document.getElementById("volume");
-		const volumeVal = document.getElementById("volume-val")
-
-		audioOptionsValue.value = "48T";
-
-		audioOptionsValue.addEventListener("change", () => {
-			stopSound();
-			setSoundOptions({
-				sampleRate: parseInt(audioOptionsValue.value.slice(0, 2)) * 1000,
-				singlePhase: audioOptionsValue.value.endsWith("S")
-			});
-			startSound()
-				.then((funct) => {
-					soundUpdateFunction = funct;
-				});
-		})
-
-		setCanvas(canvas, ctx);
-
-		const loadTrain = document.getElementById("load");
-		loadTrain.addEventListener("change", () => {
-			loadEditor(loadTrain.value, setTrain(loadTrain.value));
-		})
-
-		setupDatabase("./trains.json")
-			.then(() => {
-				const trains = getAvailableTrains();
-				loadTrain.replaceChildren();
-				for (const train of trains) {
-					loadTrain.appendChild(createElement("option", {
-						value: train,
-						textContent: train
-					}));
-				}
-				loadTrain.value = "400hz";
-				console.log(trains)
-				loadTrain.dispatchEvent(new Event("change"));
-				loop();
-			});
-		
-		// Single phase visualisation that takes up most of the canvas
-		setRenderOptions({
-			renderSinglePhase: true,
-			waveHeight: 0.4,
-			phase1Position: 0.5,
-			sampleRate: 20000,
-			samplesPerPixel: 4
-		});
-		setSoundOptions({
-			useInterpolation: true
-		});
-
-		let prevFrame = 0;
-
-		let frequency = 0;
-		let power = 0;
-		let throttle = 0;
-		let hill = 1;
-
-		throttleSlider.addEventListener("change", (e) => {
-			throttleSlider.value = 0;
-		})
-
-		function loop() {
-			const time = performance.now();
-			const deltaTime = time - prevFrame;
-			prevFrame = time;
-
-			throttle = Number(throttleSlider.value);
-			const controls = currentTrain.controls ?? {};
-
-			const peakPoint = currentTrain.peak_point == null ? 50 : currentTrain.peak_point * currentTrain.speed_per_motor_hz;
-			const maxFrequency = currentTrain.max_speed == null ? 120 : currentTrain.max_speed * currentTrain.speed_per_motor_hz;
-			const accelleration = (throttle > 0 ? (1 - Math.max(0, frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
-			 * ((controls.accelleration ?? 2.5) * hill): (controls.decelleration ?? 3) / hill) * throttle;
-
-			frequency += deltaTime / 1000 * (accelleration * currentTrain.speed_per_motor_hz);
-
-			power = Math.abs(throttle)
-			 * Math.max(controls.min_power ?? 0.1,
-			   Math.min(1, frequency / peakPoint))
-			 * (controls.max_power ?? 1);
-			if (Math.abs(frequency) < 0.2) power = 0;
-			frequency = Math.max(0, frequency);
-
-			commandVF(frequency, power, deltaTime);
-			setSoundOptions({
-				volume: Number(volumeSlider.value)
-			});
-
-			const {
-				currentSpeed,
-				currentFrequency,
-				currentPower,
-				carrierFrequency,
-				pulses,
-				pulsingMode,
-			} = getVFData();
-
-			// Update info text
-			frequencyElement.textContent = currentFrequency.toFixed(2);
-			speedElement.textContent = currentSpeed.toFixed(2);
-			carrierFrequencyElement.textContent = Math.round(carrierFrequency);
-			powerElement.textContent = Math.floor(currentPower * 100);
-			pulsesElement.textContent = pulses;
-			methodText.textContent = pulsingMode;
-			volumeVal.textContent = Math.floor(volumeSlider.value * 100);
-
-			renderVisualisations();
-
-			requestAnimationFrame(loop);
-		};
-
-		// setInterval(loop, 100);
-	</script>
+<!DOCTYPE html>
+<html lang="en" theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Train V/F Simulator</title>
+    <style>
+:root { color-scheme: dark; --page: #080808; --panel: #171717; --panel-raised: #222; --border: #454545; --text: #f0efce; --muted: #b9b79c; --accent: #f0dc65; --input: #101010; }
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: var(--page); color: var(--text); font: 14px "Fira Sans", Arial, sans-serif; }
+body { display: flex; flex-direction: column; }
+button, input, select, textarea { font: inherit; }
+button, select, input { accent-color: var(--accent); }
+button { padding: 0.35rem 0.65rem; margin: 0.12rem 0.2rem 0.12rem 0; color: var(--text); background: #303030; border: 1px solid #666; border-radius: 3px; cursor: pointer; }
+button:hover { background: #424242; }
+input, select { min-height: 1.8rem; padding: 0.18rem 0.35rem; color: var(--text); background: var(--input); border: 1px solid #666; border-radius: 3px; }
+input[type="number"] { width: 6.5rem; }
+input[type="range"] { padding: 0; }
+.app { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.6rem 1rem; min-height: 3.5rem; padding: 0.45rem 0.8rem; background: #111; border-bottom: 1px solid var(--border); }
+.top-toolbar, .audio-controls { display: flex; flex-wrap: wrap; gap: 0.35rem 0.65rem; align-items: center; }
+.top-toolbar label, .audio-controls label { display: inline-flex; gap: 0.35rem; align-items: center; color: var(--muted); }
+#load { min-width: 12rem; max-width: min(32vw, 25rem); }
+#volume { width: 6.5rem; }
+.status-bar { position: relative; z-index: 5; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.45rem 1.6rem; min-height: 3.6rem; padding: 0.65rem 1rem; background: rgba(5, 5, 5, 0.86); border-top: 1px solid #777; backdrop-filter: blur(5px); flex: 0 0 auto; width: 100%; }
+.status-value { white-space: nowrap; font-size: 1.15rem; font-weight: 600; }
+.status-value span { color: var(--accent); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.status-value[hidden] { display: none !important; }
+.driving-controls { margin: 0 0 1rem; padding: 0.8rem; background: var(--panel-raised); border: 1px solid #555; border-radius: 5px; }
+.driving-controls h3 { margin: 0 0 0.65rem; color: var(--accent); font-size: 1rem; }
+.control-label { display: block; margin: 0.45rem 0 0.25rem; color: var(--muted); font-weight: 600; }
+.throttle-controls { display: flex; flex-direction: column; gap: 0.35rem; }
+#throttle { width: 100%; height: 2.2rem; cursor: pointer; }
+.drive-actions { display: flex; justify-content: flex-end; margin: 0.1rem 0 0.55rem; }
+.hill-line { display: flex; gap: 0.7rem; align-items: center; }
+#hill { width: 100%; height: 1.8rem; cursor: pointer; }
+#hill-val { min-width: 2.8rem; color: var(--accent); text-align: right; font-variant-numeric: tabular-nums; }
+.workspace { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; flex: 1; min-height: 0; padding: 0.7rem; }
+.panel { min-width: 0; min-height: 0; padding: 0.8rem; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 5px; }
+.panel h2 { margin: 0 0 0.75rem; padding-bottom: 0.55rem; color: var(--accent); font-size: 1.05rem; border-bottom: 1px solid var(--border); }
+.panel h3 { margin: 1rem 0 0.35rem; color: var(--accent); font-size: 0.95rem; }
+.help-copy { color: var(--muted); line-height: 1.5; }
+.help-copy p { margin: 0.4rem 0 0.75rem; }
+.help-copy ul { margin: 0.3rem 0 0.8rem; padding-left: 1.2rem; }
+.help-copy li { margin: 0.35rem 0; }
+#mode-help { padding: 0.65rem; color: var(--text); background: var(--panel-raised); border-left: 3px solid var(--accent); border-radius: 2px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; margin-bottom: 0.8rem; }
+#load { max-width: 100%; min-width: 8rem; flex: 1; }
+.setting-row { display: flex; gap: 0.6rem; justify-content: space-between; align-items: center; min-height: 2.2rem; margin: 0.18rem 0; }
+.setting-row > span:first-child, .setting-row > label:first-child { min-width: 0; color: var(--muted); }
+.setting-row input, .setting-row select { flex: 0 0 auto; }
+.setting-row[hidden] { display: none !important; }
+.gear-ratio-inputs { display: inline-flex; gap: 0.35rem; align-items: center; }
+.gear-ratio-inputs input { width: 5rem; }
+.calculated-value { min-width: 6.5rem; text-align: right; color: var(--accent); font-variant-numeric: tabular-nums; }
+.pulsing-header { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; justify-content: space-between; margin-bottom: 0.65rem; }
+.pulsing-header h2 { flex: 1; margin-bottom: 0; }
+#pulsing-config { display: flex; flex-direction: column; gap: 0.65rem; }
+.pulsing-element { padding: 0.7rem; background: var(--panel-raised); border: 1px solid #555; border-radius: 4px; }
+.pulsing-element .setting-row { gap: 0.8rem; }
+.pulsing-element .setting-row input, .pulsing-element .setting-row select { width: min(12rem, 48%); }
+.pulsing-element .mode-row select { width: min(15rem, 60%); }
+.pulsing-actions { display: flex; gap: 0.35rem; margin-top: 0.55rem; }
+.pulsing-actions button { margin-right: 0; }
+canvas { position: relative; z-index: 0; display: block; width: 100%; height: 25vh; flex: 0 0 25vh; background: #000; }
+#text { position: fixed; z-index: 20; top: 5vh; left: 5vw; width: 90vw; height: 80vh; padding: 1rem; overflow: auto; color: var(--text); background: #252525; border: 1px solid #777; border-radius: 5px; font: 13px/1.45 monospace; resize: both; }
+.buttons { position: fixed; z-index: 21; right: 5vw; bottom: 8vh; display: flex; gap: 0.4rem; justify-content: flex-end; }
+.muted-note { color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 1050px) {
+  .workspace { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .status-bar { gap: 0.35rem 1rem; }
+}
+@media (max-width: 760px) {
+  html, body { overflow: auto; }
+  .app { position: relative; inset: auto; flex: 0 0 auto; height: auto; min-height: 0; padding-bottom: 0; }
+  .workspace { grid-template-columns: 1fr; min-height: 0; flex: 0 0 auto; }
+  .panel { max-height: none; overflow: visible; }
+  canvas { position: relative; height: 25vh; flex: 0 0 25vh; }
+  .status-bar { justify-content: flex-start; gap: 0.3rem 0.8rem; min-height: 3rem; padding: 0.45rem 0.55rem; }
+  .status-value, .status-value span { font-size: 0.95rem; }
+  #text { position: fixed; top: 2vh; left: 2vw; width: 96vw; height: 88vh; }
+  .buttons { right: 2vw; bottom: 3vh; }
+}
+
+    </style>
+</head>
+<body>
+    <main class="app">
+        <header class="top-bar">
+            <div class="top-toolbar">
+                <button id="new" type="button">New Train</button>
+                <button id="save" type="button">JSON Editor</button>
+                <label for="load">Train
+                    <select id="load" aria-label="Load train">
+                        <option value="">Loading trains…</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="audio-controls">
+                <label for="audio">Audio
+                    <select id="audio">
+                        <option value="24T">24kHz 3 Phase</option>
+                        <option value="48T">48kHz 3 Phase</option>
+                        <option value="96T">96kHz 3 Phase</option>
+                    </select>
+                </label>
+                <label for="volume">Volume</label>
+                <input type="range" min="0" max="1.5" step="0.05" id="volume" value="1">
+                <span id="volume-val">100</span>%
+            </div>
+        </header>
+
+        <section class="workspace">
+            <!-- LEFT: HELP -->
+            <aside class="panel" id="help-panel">
+                <h2>Help</h2>
+                <div class="help-copy">
+                    <p>Configure the train in the middle panel and its switching behaviour in the pulsing panel on the right.</p>
+
+                    <h3>Pulsing modes</h3>
+                    <ul>
+                        <li><strong>ASYNC:</strong> Uses one fixed carrier frequency.</li>
+                        <li><strong>ASYNC-OSCILLATING:</strong> Oscillates the carrier between a minimum and maximum using the selected waveform.</li>
+                        <li><strong>ASYNC-SWEEP:</strong> Sweeps the carrier between a minimum and maximum as motor frequency rises.</li>
+                        <li><strong>SYNC:</strong> Uses a pulse count and has no carrier-frequency setting. It dynamically creates the pulsing.</li>
+                        <li><strong>SHE-PWM:</strong> Uses a pulse count and has no carrier-frequency setting. The pulsing is pre-computed.</li>
+                    </ul>
+
+                    <h3>JSON</h3>
+                    <p>JSON contains only the settings used by each selected mode. Settings belonging to a previous mode are removed when the mode changes.</p>
+                    <p>Use <strong>JSON Editor</strong> to inspect, copy or load a train configuration.</p>
+
+                    <h3>Mode-specific settings</h3>
+                    <div id="mode-help">Select a pulsing mode to see its settings and behaviour.</div>
+
+
+                </div>
+            </aside>
+
+            <!-- MIDDLE: TRAIN SETTINGS -->
+            <section class="panel" id="train-panel">
+                <h2>Train Settings</h2>
+
+                <section class="driving-controls" aria-label="Driving controls">
+                    <h3>Driving Controls</h3>
+                    <div class="throttle-controls">
+                        <label class="control-label" for="throttle">Throttle</label>
+                        <input id="throttle" type="range" min="-1" max="1" step="0.01" value="0">
+                    </div>
+                    <div class="drive-actions">
+                        <button id="reset" type="button">Reset Speed</button>
+                    </div>
+
+                    <label class="control-label" for="hill">Hill</label>
+                    <div class="hill-line">
+                        <input id="hill" type="range" min="0" max="2" step="0.01" value="1">
+                        <span id="hill-val">1.00</span>
+                    </div>
+                </section>
+
+                <div id="train-config"></div>
+            </section>
+
+            <!-- RIGHT: PULSING SETTINGS -->
+            <section class="panel" id="pulsing-panel">
+                <div class="pulsing-header">
+                    <h2>Pulsing Configuration</h2>
+                    <button id="add-pulsing" type="button">Add Pulsing</button>
+                </div>
+                <div class="muted-note">The order of these entries is retained in the saved configuration.</div>
+                <div id="pulsing-config"></div>
+            </section>
+        </section>
+    </main>
+
+    <canvas id="canvas"></canvas>
+    <div class="status-bar" aria-live="polite" aria-label="Simulation status">
+        <div class="status-value">Frequency: <span id="sine-frequency-val">0.00</span> Hz</div>
+        <div class="status-value">Power: <span id="power-val">0</span> %</div>
+        <div class="status-value">Speed: <span id="speed-val">0.00</span> km/h</div>
+        <div class="status-value">Mode: <span id="method">—</span></div>
+        <div class="status-value" id="carrier-status">Carrier: <span id="carrier-frequency-val">0</span> Hz</div>
+        <div class="status-value" id="pulses-status">Pulses: <span id="pulses-val">0</span></div>
+    </div>
+    <textarea id="text" hidden aria-label="JSON editor"></textarea>
+
+    <script type="module" src="./pulsing.js"></script>
+    <script type="module" src="./render.js"></script>
+    <script type="module" src="./sound.js"></script>
+    <script type="module" src="./interface.js"></script>
+
+    <script type="module">
+        import {
+            setupDatabase,
+            setTrain,
+            commandVF,
+            getVFData,
+            getAvailableTrains,
+            setSoundUpdateFunction
+        } from "./interface.js";
+
+        import {
+            setSoundOptions,
+            startSound,
+            stopSound
+        } from "./sound.js";
+
+        import {
+            setCanvas,
+            setRenderOptions,
+            renderVisualisations
+        } from "./render.js";
+
+
+        // ====================================================
+        // GLOBAL STATE AND DOM REFERENCES
+        // ====================================================
+
+        let currentTrain = { controls: {}, pulsing: [] };
+        let trainName = "";
+
+        let frequency = 0;
+        let power = 0;
+        let throttle = 0;
+        let hill = 1;
+
+        let previousFrame = 0;
+        let animationStarted = false;
+
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const throttleSlider = document.getElementById("throttle");
+        const resetButton = document.getElementById("reset");
+
+        const frequencyElement = document.getElementById("sine-frequency-val");
+        const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
+        const speedElement = document.getElementById("speed-val");
+        const powerElement = document.getElementById("power-val");
+        const pulsesElement = document.getElementById("pulses-val");
+        const methodText = document.getElementById("method");
+        const carrierStatus = document.getElementById("carrier-status");
+        const pulsesStatus = document.getElementById("pulses-status");
+
+        const hillSlider = document.getElementById("hill");
+        const hillValue = document.getElementById("hill-val");
+
+        const audioOptionsValue = document.getElementById("audio");
+        const volumeSlider = document.getElementById("volume");
+        const volumeVal = document.getElementById("volume-val");
+
+        const loadTrainSelect = document.getElementById("load");
+        const displayArea = document.getElementById("text");
+        const modeHelp = document.getElementById("mode-help");
+
+
+        // ====================================================
+        // GENERAL DOM HELPERS
+        // ====================================================
+
+        function createElement(elementType, properties = {}, classes = null) {
+            const element = Object.assign(
+                document.createElement(elementType),
+                properties
+            );
+
+            if (classes) element.classList.add(...classes);
+            return element;
+        }
+
+        function createInput(content, element, className = "setting-row") {
+            const row = createElement("div");
+            row.classList.add(...className.split(/\s+/).filter(Boolean));
+            const label = createElement("span", {
+                textContent: content
+            });
+            row.append(label, element);
+            return row;
+        }
+
+        function isFiniteNumber(value) {
+            return Number.isFinite(Number(value));
+        }
+
+
+        // ====================================================
+        // PULSING MODE SCHEMA
+        // ====================================================
+
+        const OSCILLATION_MODES = [
+            "TRIANGLE",
+            "SINE",
+            "SQUARE",
+            "SAW-RISING",
+            "SAW-FALLING",
+            "RANDOM"
+        ];
+
+        const PULSING_MODE_SCHEMA = {
+            "ASYNC": {
+                fields: ["min_speed", "carrier_frequency"],
+                defaults: {
+                    min_speed: 0,
+                    carrier_frequency: 400
+                }
+            },
+
+            "ASYNC-OSCILLATING": {
+                fields: [
+                    "min_speed",
+                    "oscillation_mode",
+                    "oscillation_frequency",
+                    "min_carrier_frequency",
+                    "max_carrier_frequency"
+                ],
+                defaults: {
+                    min_speed: 0,
+                    oscillation_mode: "TRIANGLE",
+                    oscillation_frequency: 5,
+                    min_carrier_frequency: 350,
+                    max_carrier_frequency: 450
+                }
+            },
+
+            "ASYNC-SWEEP": {
+                fields: [
+                    "min_speed",
+                    "min_carrier_frequency",
+                    "max_carrier_frequency"
+                ],
+                defaults: {
+                    min_speed: 0,
+                    min_carrier_frequency: 350,
+                    max_carrier_frequency: 450
+                }
+            },
+
+            "SYNC": {
+                fields: ["min_speed", "pulses"],
+                defaults: {
+                    min_speed: 0,
+                    pulses: 21
+                }
+            },
+
+            "SHE-PWM": {
+                fields: ["min_speed", "pulses"],
+                defaults: {
+                    min_speed: 0,
+                    pulses: 21
+                }
+            }
+        };
+
+        const FIELD_DEFINITIONS = {
+            min_speed: {
+                label: "Start Speed (km/h)",
+                type: "number",
+                step: 0.1,
+                min: 0
+            },
+            oscillation_mode: {
+                label: "Oscillation Mode",
+                type: "select",
+                options: OSCILLATION_MODES
+            },
+            oscillation_frequency: {
+                label: "Oscillation Frequency (Hz)",
+                type: "number",
+                step: 0.1,
+                min: 0.1
+            },
+            carrier_frequency: {
+                label: "Carrier Frequency (Hz)",
+                type: "number",
+                step: 10,
+                min: 0
+            },
+            min_carrier_frequency: {
+                label: "Min Carrier Frequency (Hz)",
+                type: "number",
+                step: 10,
+                min: 0
+            },
+            max_carrier_frequency: {
+                label: "Max Carrier Frequency (Hz)",
+                type: "number",
+                step: 10,
+                min: 0
+            },
+            pulses: {
+                label: "Pulses",
+                type: "number",
+                step: 1,
+                min: 1
+            }
+        };
+
+        const MODE_HELP_TEXT = {
+            "ASYNC": "ASYNC uses one fixed carrier frequency. Switching to OSCILLATING or SWEEP creates a range 50 Hz below and 50 Hz above this carrier.",
+            "ASYNC-OSCILLATING": "The carrier moves between the minimum and maximum values using the selected waveform and oscillation frequency. Random requests random carrier values within the range; the simulation module must support RANDOM for this selection to affect runtime behaviour. The min/max values are shared with ASYNC-SWEEP.",
+            "ASYNC-SWEEP": "The carrier sweeps linearly between the minimum and maximum values as motor speed rises. The min/max values are shared with ASYNC-OSCILLATING.",
+            "SYNC": "SYNC uses a pulse count. It does not have a carrier-frequency setting. The pulse count is preserved when switching to or from SHE-PWM.",
+            "SHE-PWM": "SHE-PWM uses a pulse count. The pulse count is preserved when switching to or from SYNC."
+        };
+
+
+        // ====================================================
+        // TRAIN SPEED CONVERSION
+        // ====================================================
+
+        function calculateSpeedPerMotorHz(train) {
+    const wheelDiameter = Number(train.wheel_diameter);
+    const motorPoles = Number(train.motor_poles ?? 4);
+    const motorSide = Number(train.gear_ratio_motor_side);
+    const wheelSide = Number(train.gear_ratio_wheel_side);
+
+    if (
+        !Number.isFinite(wheelDiameter) || wheelDiameter <= 0 ||
+        !Number.isFinite(motorPoles) || motorPoles <= 0 ||
+        motorPoles % 2 !== 0 ||
+        !Number.isFinite(motorSide) || motorSide <= 0 ||
+        !Number.isFinite(wheelSide) || wheelSide <= 0
+    ) {
+        return NaN;
+    }
+
+    const gearRatio = motorSide / wheelSide;
+
+    // Electrical motor frequency in Hz per km/h.
+    // Motor electrical frequency uses pole pairs, not total poles.
+    return (motorPoles * gearRatio) /
+        (7.2 * Math.PI * wheelDiameter);
+}
+
+
+        // ====================================================
+        // NORMALISE A LOADED PULSING CONFIGURATION
+        // Only fields allowed by the selected mode survive.
+        // ====================================================
+
+        function normalisePulsingConfig(rawConfig = {}, train = currentTrain) {
+            if (
+                rawConfig == null ||
+                typeof rawConfig !== "object" ||
+                Array.isArray(rawConfig)
+            ) {
+                rawConfig = {};
+            }
+
+            const source = { ...rawConfig };
+            let mode = source.mode;
+
+            // Unsupported or retired modes are normalised to ASYNC.
+            // Their old properties are discarded by the schema whitelist.
+            if (!Object.hasOwn(PULSING_MODE_SCHEMA, mode)) {
+                mode = "ASYNC";
+            }
+
+            source.mode = mode;
+
+            // Support the previous saved format that stored the
+            // start threshold as motor frequency.
+            if (source.min_speed == null && source.min_motor_frequency != null) {
+                let factor = Number(train.speed_per_motor_hz);
+                if (!Number.isFinite(factor) || factor <= 0) {
+                    factor = calculateSpeedPerMotorHz(train);
+                }
+
+                const oldFrequency = Number(source.min_motor_frequency);
+                if (Number.isFinite(oldFrequency) && Number.isFinite(factor) && factor > 0) {
+                    source.min_speed = oldFrequency * factor;
+                }
+            }
+
+            const schema = PULSING_MODE_SCHEMA[mode];
+            const result = { mode };
+
+            for (const key of schema.fields) {
+                const definition = FIELD_DEFINITIONS[key];
+                let value = source[key];
+
+                if (value == null) value = schema.defaults[key];
+
+                if (key === "oscillation_mode") {
+                    result[key] = OSCILLATION_MODES.includes(value)
+                        ? value
+                        : schema.defaults[key];
+                    continue;
+                }
+
+                const number = Number(value);
+                const minimum = definition?.min ?? -Infinity;
+
+                if (Number.isFinite(number) && number >= minimum) {
+                    result[key] = number;
+                } else {
+                    result[key] = schema.defaults[key];
+                }
+            }
+
+            return result;
+        }
+
+        function serialisePulsingConfig(config) {
+            // Re-normalising at the save boundary guarantees that
+            // stale properties cannot leak into the JSON.
+            return normalisePulsingConfig(config, currentTrain);
+        }
+
+
+        // ====================================================
+        // MODE TRANSITIONS
+        // Preserve useful values when switching between modes.
+        // ====================================================
+
+        function transitionPulsingConfig(previousConfig, newMode) {
+            const oldConfig = normalisePulsingConfig(previousConfig, currentTrain);
+            const oldMode = oldConfig.mode;
+
+            const next = {
+                mode: newMode,
+                min_speed: oldConfig.min_speed ?? 0
+            };
+
+            const isRangeMode = mode =>
+                mode === "ASYNC-OSCILLATING" || mode === "ASYNC-SWEEP";
+
+            const oldHasRange = isRangeMode(oldMode);
+            const oldCarrier = Number(oldConfig.carrier_frequency);
+            const oldMin = Number(oldConfig.min_carrier_frequency);
+            const oldMax = Number(oldConfig.max_carrier_frequency);
+
+            // SYNC and SHE-PWM both use pulse count. Keep it when moving
+            // between those two modes.
+            if (
+                (newMode === "SYNC" || newMode === "SHE-PWM") &&
+                (oldMode === "SYNC" || oldMode === "SHE-PWM")
+            ) {
+                next.pulses = oldConfig.pulses;
+            }
+
+            // OSCILLATING and SWEEP share the same range. If moving from
+            // fixed-carrier ASYNC, initialise the range around that carrier.
+            if (isRangeMode(newMode)) {
+                if (
+                    oldHasRange &&
+                    Number.isFinite(oldMin) &&
+                    Number.isFinite(oldMax)
+                ) {
+                    next.min_carrier_frequency = oldMin;
+                    next.max_carrier_frequency = oldMax;
+                } else {
+                    const baseCarrier =
+                        oldMode === "ASYNC" && Number.isFinite(oldCarrier)
+                            ? oldCarrier
+                            : 400;
+                    next.min_carrier_frequency = Math.max(0, baseCarrier - 50);
+                    next.max_carrier_frequency = baseCarrier + 50;
+                }
+            }
+
+            // Returning from a range mode to ASYNC uses its midpoint.
+            // SYNC deliberately has no carrier frequency at all.
+            if (newMode === "ASYNC") {
+                if (
+                    oldHasRange &&
+                    Number.isFinite(oldMin) &&
+                    Number.isFinite(oldMax)
+                ) {
+                    next.carrier_frequency = (oldMin + oldMax) / 2;
+                } else if (oldMode === "ASYNC" && Number.isFinite(oldCarrier)) {
+                    next.carrier_frequency = oldCarrier;
+                } else {
+                    next.carrier_frequency = 400;
+                }
+            }
+
+            // Keep the waveform and oscillation speed if the user remains
+            // in OSCILLATING. Entering it from another mode uses defaults.
+            if (newMode === "ASYNC-OSCILLATING" && oldMode === "ASYNC-OSCILLATING") {
+                next.oscillation_mode = oldConfig.oscillation_mode;
+                next.oscillation_frequency = oldConfig.oscillation_frequency;
+            }
+
+            return normalisePulsingConfig(next, currentTrain);
+        }
+
+
+        // ====================================================
+        // LOAD TRAIN INTO SIMULATION
+        // ====================================================
+
+        function loadTrainToSim() {
+            const speedPerMotorHz = calculateSpeedPerMotorHz(currentTrain);
+
+            if (Number.isFinite(speedPerMotorHz) && speedPerMotorHz > 0) {
+                currentTrain.speed_per_motor_hz = speedPerMotorHz;
+            } else {
+                delete currentTrain.speed_per_motor_hz;
+            }
+
+            if (!Array.isArray(currentTrain.pulsing)) {
+                currentTrain.pulsing = [];
+            }
+
+            setTrain(structuredClone(currentTrain));
+
+            const display = document.getElementById("speed-per-motor-hz");
+            if (display) {
+                display.textContent = Number.isFinite(currentTrain.speed_per_motor_hz)
+                    ? currentTrain.speed_per_motor_hz.toFixed(4)
+                    : "Invalid gear ratio";
+            }
+        }
+
+
+        // ====================================================
+        // JSON/TEXT EDITOR
+        // ====================================================
+
+        function saveText(text) {
+            document.querySelector(".buttons")?.remove();
+
+            displayArea.hidden = false;
+            displayArea.value = text;
+
+            const buttons = createElement("div", {}, ["buttons"]);
+            const copyButton = createElement("button", { textContent: "Copy", type: "button" });
+            const closeButton = createElement("button", { textContent: "Close", type: "button" });
+
+            buttons.append(copyButton, closeButton);
+            document.body.appendChild(buttons);
+
+            closeButton.addEventListener("click", () => {
+                displayArea.hidden = true;
+                buttons.remove();
+            });
+
+            copyButton.addEventListener("click", async () => {
+                try {
+                    await navigator.clipboard.writeText(displayArea.value);
+                } catch (error) {
+                    console.error("Clipboard write failed:", error);
+                    alert("Could not copy to the clipboard. Select the text and copy it manually.");
+                }
+            });
+
+            return buttons;
+        }
+
+
+        // ====================================================
+        // TRAIN EDITOR
+        // ====================================================
+
+        function loadEditor(name, trainConfig) {
+            frequency = 0;
+            power = 0;
+            throttle = 0;
+            hill = 1;
+            throttleSlider.value = "0";
+            hillSlider.value = "1";
+            hillValue.textContent = "1.00";
+            trainName = name;
+
+            currentTrain = (
+                trainConfig &&
+                typeof trainConfig === "object" &&
+                !Array.isArray(trainConfig)
+            ) ? structuredClone(trainConfig) : {};
+
+            currentTrain.controls ??= {};
+            currentTrain.pulsing = Array.isArray(currentTrain.pulsing)
+                ? currentTrain.pulsing
+                : [];
+
+            const speedFactor = calculateSpeedPerMotorHz(currentTrain);
+            if (Number.isFinite(speedFactor) && speedFactor > 0) {
+                currentTrain.speed_per_motor_hz = speedFactor;
+            }
+
+            const editor = document.getElementById("train-config");
+            const pulsingEditor = document.getElementById("pulsing-config");
+            editor.replaceChildren();
+            pulsingEditor.replaceChildren();
+
+            // ------------------------------------------------
+            // General train numeric setting helper
+            // ------------------------------------------------
+
+            function addNumberSetting(parent, label, target, key, options = {}) {
+                const input = createElement("input", {
+                    type: "number",
+                    step: options.step ?? 1,
+                    min: options.min ?? "",
+                    max: options.max ?? "",
+                    value: target[key] ?? ""
+                });
+
+                const row = createInput(label, input);
+
+                input.addEventListener("change", () => {
+                    if (input.value.trim() === "") {
+                        if (options.required) {
+                            input.value = target[key] ?? "";
+                            return;
+                        }
+                        delete target[key];
+                        loadTrainToSim();
+                        return;
+                    }
+
+                    const value = input.valueAsNumber;
+                    const min = options.min ?? -Infinity;
+                    const max = options.max ?? Infinity;
+
+                    if (!Number.isFinite(value) || value < min || value > max) {
+                        input.value = target[key] ?? "";
+                        return;
+                    }
+
+                    target[key] = value;
+                    loadTrainToSim();
+                });
+
+                parent.appendChild(row);
+                return input;
+            }
+
+            // Name
+            const nameInput = createElement("input", {
+                type: "text",
+                value: trainName
+            });
+
+            nameInput.addEventListener("change", () => {
+                trainName = nameInput.value;
+            });
+
+            editor.appendChild(createInput("Name", nameInput));
+
+            // Wheel diameter
+            addNumberSetting(editor, "Wheel Diameter (m)", currentTrain, "wheel_diameter", {
+                step: 0.01,
+                min: 0.1,
+                required: true
+            });
+
+            // Gear ratio, with its existing two-input presentation
+            const gearRatioMotorSide = createElement("input", {
+                type: "number",
+                step: 1,
+                min: 0.1,
+                value: currentTrain.gear_ratio_motor_side ?? ""
+            });
+
+            const gearRatioWheelSide = createElement("input", {
+                type: "number",
+                step: 1,
+                min: 0.1,
+                value: currentTrain.gear_ratio_wheel_side ?? ""
+            });
+
+            const gearRatioInputs = createElement("span", {}, ["gear-ratio-inputs"]);
+            gearRatioInputs.append(
+                gearRatioMotorSide,
+                document.createTextNode(":"),
+                gearRatioWheelSide
+            );
+
+            function updateGearRatio() {
+                const motor = gearRatioMotorSide.valueAsNumber;
+                const wheel = gearRatioWheelSide.valueAsNumber;
+
+                if (!Number.isFinite(motor) || motor <= 0 || !Number.isFinite(wheel) || wheel <= 0) {
+                    gearRatioMotorSide.value = currentTrain.gear_ratio_motor_side ?? "";
+                    gearRatioWheelSide.value = currentTrain.gear_ratio_wheel_side ?? "";
+                    return;
+                }
+
+                currentTrain.gear_ratio_motor_side = motor;
+                currentTrain.gear_ratio_wheel_side = wheel;
+                loadTrainToSim();
+            }
+
+            gearRatioMotorSide.addEventListener("change", updateGearRatio);
+            gearRatioWheelSide.addEventListener("change", updateGearRatio);
+            editor.appendChild(createInput("Gear Ratio", gearRatioInputs));
+
+            // Calculated speed per motor Hz
+            const speedPerMotorHzDisplay = createElement("div", {
+                id: "speed-per-motor-hz",
+                className: "calculated-value"
+            });
+            editor.appendChild(createInput("Speed Per Motor Hz", speedPerMotorHzDisplay));
+
+            // Other train settings
+            addNumberSetting(editor, "Max Speed (km/h)", currentTrain, "max_speed", {
+                step: 1,
+                min: 0
+            });
+
+            addNumberSetting(editor, "Peak Point", currentTrain, "peak_point", {
+                step: 1,
+                min: 0
+            });
+
+            addNumberSetting(editor, "Rolling Resistance", currentTrain, "rolling_resistance", {
+                step: 0.01,
+                min: 0
+            });
+
+            addNumberSetting(editor, "Acceleration (km/h)", currentTrain.controls, "accelleration", {
+                step: 1,
+                min: 0
+            });
+
+            addNumberSetting(editor, "Deceleration (km/h)", currentTrain.controls, "decelleration", {
+                step: 1,
+                min: 0
+            });
+
+            addNumberSetting(editor, "Min Power", currentTrain.controls, "min_power", {
+                step: 0.01,
+                min: 0,
+                max: 1
+            });
+
+            addNumberSetting(editor, "Max Power", currentTrain.controls, "max_power", {
+                step: 0.01,
+                min: 0,
+                max: 2
+            });
+
+
+            // =================================================
+            // PULSING EDITOR STATE
+            // =================================================
+
+            const initialPulsing = structuredClone(currentTrain.pulsing)
+                .map(config => normalisePulsingConfig(config, currentTrain));
+
+            const pulsingItems = [];
+            let nextPulsingID = 0;
+
+            function commitPulsing(updateSimulation = true) {
+                currentTrain.pulsing = pulsingItems.map(item =>
+                    serialisePulsingConfig(item.config)
+                );
+
+                if (updateSimulation) {
+                    loadTrainToSim();
+                }
+            }
+
+            function updateModeHelp(mode) {
+                modeHelp.textContent = MODE_HELP_TEXT[mode] ??
+                    "Select a mode to see its settings.";
+            }
+
+            function updatePulsingFields(item) {
+                const activeFields = new Set(
+                    PULSING_MODE_SCHEMA[item.config.mode].fields
+                );
+
+                for (const [key, field] of item.fields) {
+                    const row = item.rows.get(key);
+                    const visible = activeFields.has(key);
+
+                    row.hidden = !visible;
+
+                    if (!visible) {
+                        // Clear unused menu controls too, so stale values
+                        // cannot be mistaken for active configuration.
+                        field.value = "";
+                        continue;
+                    }
+
+                    const value = item.config[key];
+                    field.value = value == null ? "" : String(value);
+                }
+
+                updateModeHelp(item.config.mode);
+            }
+
+            function addPulsingMode(insertIndex = pulsingItems.length, rawConfig = null, updateSimulation = true) {
+                insertIndex = Math.max(0, Math.min(insertIndex, pulsingItems.length));
+
+                const item = {
+                    id: nextPulsingID++,
+                    config: normalisePulsingConfig(rawConfig ?? { mode: "ASYNC" }, currentTrain),
+                    fields: new Map(),
+                    rows: new Map(),
+                    element: null
+                };
+
+                const element = createElement("div", {}, ["pulsing-element"]);
+                item.element = element;
+
+                // Mode dropdown: only the five supported modes appear.
+                const modeSelect = createElement("select");
+                for (const mode of Object.keys(PULSING_MODE_SCHEMA)) {
+                    modeSelect.appendChild(createElement("option", {
+                        value: mode,
+                        textContent: mode
+                    }));
+                }
+                modeSelect.value = item.config.mode;
+
+                const modeRow = createInput("Mode", modeSelect, "setting-row mode-row");
+                element.appendChild(modeRow);
+
+                // Create all fields once; visibility is controlled by schema.
+                for (const [key, definition] of Object.entries(FIELD_DEFINITIONS)) {
+                    let field;
+
+                    if (definition.type === "select") {
+                        field = createElement("select");
+                        for (const option of definition.options) {
+                            field.appendChild(createElement("option", {
+                                value: option,
+                                textContent: option === "RANDOM" ? "Random" : option
+                            }));
+                        }
+                    } else {
+                        field = createElement("input", {
+                            type: definition.type,
+                            step: definition.step,
+                            min: definition.min
+                        });
+                    }
+
+                    field.dataset.value = key;
+                    const row = createInput(definition.label, field);
+                    item.fields.set(key, field);
+                    item.rows.set(key, row);
+                    element.appendChild(row);
+
+                    field.addEventListener("change", () => {
+                        const activeFields = PULSING_MODE_SCHEMA[item.config.mode].fields;
+                        if (!activeFields.includes(key)) return;
+
+                        if (key === "oscillation_mode") {
+                            if (!OSCILLATION_MODES.includes(field.value)) {
+                                field.value = item.config[key];
+                                return;
+                            }
+                            item.config[key] = field.value;
+                        } else {
+                            const value = field.valueAsNumber;
+                            const minimum = definition.min ?? -Infinity;
+
+                            if (!Number.isFinite(value) || value < minimum) {
+                                field.value = item.config[key] ?? "";
+                                return;
+                            }
+
+                            item.config[key] = value;
+                        }
+
+                        // Keep carrier ranges sensible.
+                        if (
+                            key === "min_carrier_frequency" &&
+                            item.config.min_carrier_frequency >= item.config.max_carrier_frequency
+                        ) {
+                            item.config.max_carrier_frequency = item.config.min_carrier_frequency + 50;
+                            item.fields.get("max_carrier_frequency").value =
+                                String(item.config.max_carrier_frequency);
+                        }
+
+                        if (
+                            key === "max_carrier_frequency" &&
+                            item.config.max_carrier_frequency <= item.config.min_carrier_frequency
+                        ) {
+                            item.config.min_carrier_frequency = Math.max(
+                                0,
+                                item.config.max_carrier_frequency - 50
+                            );
+                            item.fields.get("min_carrier_frequency").value =
+                                String(item.config.min_carrier_frequency);
+                        }
+
+                        commitPulsing();
+                    });
+                }
+
+                // Change mode by constructing a fresh config and carrying
+                // forward only values relevant to the new mode.
+                modeSelect.addEventListener("change", () => {
+                    item.config = transitionPulsingConfig(item.config, modeSelect.value);
+                    updatePulsingFields(item);
+                    commitPulsing();
+                });
+
+                const actions = createElement("div", {}, ["pulsing-actions"]);
+                const deleteButton = createElement("button", {
+                    type: "button",
+                    textContent: "Delete"
+                });
+                const insertButton = createElement("button", {
+                    type: "button",
+                    textContent: "Insert Before"
+                });
+
+                deleteButton.addEventListener("click", () => {
+                    const index = pulsingItems.indexOf(item);
+                    if (index < 0) return;
+
+                    pulsingItems.splice(index, 1);
+                    element.remove();
+                    commitPulsing();
+
+                    if (pulsingItems.length === 0) {
+                        modeHelp.textContent = "Add a pulsing mode to configure switching behaviour.";
+                    }
+                });
+
+                insertButton.addEventListener("click", () => {
+                    const index = pulsingItems.indexOf(item);
+                    if (index >= 0) addPulsingMode(index);
+                });
+
+                actions.append(deleteButton, insertButton);
+                element.appendChild(actions);
+
+                const beforeElement = pulsingItems[insertIndex]?.element ?? null;
+                pulsingItems.splice(insertIndex, 0, item);
+                pulsingEditor.insertBefore(element, beforeElement);
+
+                updatePulsingFields(item);
+
+                if (updateSimulation) commitPulsing();
+            }
+
+            // Load and clean existing entries.
+            for (const config of initialPulsing) {
+                addPulsingMode(pulsingItems.length, config, false);
+            }
+
+            commitPulsing(false);
+
+            // Attach the Add Pulsing button for this editor instance.
+            document.getElementById("add-pulsing").onclick = () => {
+                addPulsingMode();
+            };
+
+            loadTrainToSim();
+        }
+
+
+        // ====================================================
+        // NEW TRAIN
+        // ====================================================
+
+        document.getElementById("new").addEventListener("click", () => {
+            loadEditor("New Train", {
+                wheel_diameter: 0.84,
+                gear_ratio_motor_side: 6,
+                gear_ratio_wheel_side: 1,
+                max_speed: 120,
+                peak_point: 50,
+                rolling_resistance: 0,
+                controls: {
+                    accelleration: 2.5,
+                    decelleration: 3,
+                    min_power: 0.1,
+                    max_power: 1
+                },
+                pulsing: [
+                    {
+                        mode: "ASYNC",
+                        carrier_frequency: 1500,
+                        min_speed: 0
+                    }
+                ]
+            });
+        });
+
+
+        // ====================================================
+        // JSON EDITOR / SAVE
+        // ====================================================
+
+        document.getElementById("save").addEventListener("click", () => {
+            const trainSave = structuredClone(currentTrain);
+            delete trainSave.speed_per_motor_hz;
+
+            trainSave.pulsing = (trainSave.pulsing ?? []).map(config =>
+                serialisePulsingConfig(config)
+            );
+
+            const buttons = saveText(JSON.stringify(trainSave, null, "\t"));
+            const loadButton = createElement("button", {
+                type: "button",
+                textContent: "Load JSON"
+            });
+
+            loadButton.addEventListener("click", () => {
+                try {
+                    const json = JSON.parse(displayArea.value);
+
+                    if (
+                        !json ||
+                        typeof json !== "object" ||
+                        Array.isArray(json)
+                    ) {
+                        throw new Error("The JSON root must be a train object.");
+                    }
+
+                    if (json.pulsing != null && !Array.isArray(json.pulsing)) {
+                        throw new Error("The pulsing property must be an array.");
+                    }
+
+                    loadEditor("JSON", json);
+                    displayArea.hidden = true;
+                    buttons.remove();
+                } catch (error) {
+                    alert("Could not load JSON:\n\n" + error.message);
+                }
+            });
+
+            buttons.appendChild(loadButton);
+        });
+
+
+        // ====================================================
+        // RESET SPEED
+        // ====================================================
+
+        resetButton.addEventListener("click", () => {
+            frequency = 0;
+            power = 0;
+            throttle = 0;
+            throttleSlider.value = "0";
+        });
+
+        hillSlider.addEventListener("input", () => {
+            hill = Math.max(0, Math.min(2, hillSlider.valueAsNumber));
+            hillValue.textContent = hill.toFixed(2);
+        });
+
+        // Preserve the original control behaviour: throttle returns
+        // to zero when the user releases/commits the range input.
+        throttleSlider.addEventListener("change", () => {
+            throttleSlider.value = "0";
+        });
+
+
+        // ====================================================
+        // AUDIO INITIALISATION
+        // ====================================================
+
+        function clickFunction() {
+            window.removeEventListener("pointerdown", clickFunction);
+
+            setTimeout(() => {
+                startSound()
+                    .then(updateFunction => {
+                        setSoundUpdateFunction(updateFunction);
+                    })
+                    .catch(error => {
+                        console.error("Could not start sound:", error);
+                    });
+            }, 100);
+        }
+
+        window.addEventListener("pointerdown", clickFunction);
+
+        audioOptionsValue.value = "48T";
+
+        audioOptionsValue.addEventListener("change", () => {
+            stopSound();
+
+            setSoundOptions({
+                sampleRate: parseInt(audioOptionsValue.value.slice(0, 2), 10) * 1000,
+                singlePhase: audioOptionsValue.value.endsWith("S")
+            });
+
+            startSound()
+                .then(updateFunction => {
+                    setSoundUpdateFunction(updateFunction);
+                })
+                .catch(error => {
+                    console.error("Could not restart sound:", error);
+                });
+        });
+
+        setSoundOptions({ useInterpolation: true });
+
+
+        // ====================================================
+        // CANVAS / RENDER INITIALISATION
+        // ====================================================
+
+        setCanvas(canvas, ctx);
+
+        setRenderOptions({
+            renderSinglePhase: true,
+            waveHeight: 0.4,
+            phase1Position: 0.5,
+            sampleRate: 20000,
+            samplesPerPixel: 4
+        });
+
+
+        // ====================================================
+        // TRAIN DATABASE
+        // ====================================================
+
+        function loadSelectedTrain() {
+    const selectedName = loadTrainSelect.value;
+    if (!selectedName) return;
+
+    const trainConfig = setTrain(selectedName);
+
+    if (!trainConfig || typeof trainConfig !== "object") {
+        console.error("Could not load train:", selectedName);
+        return;
+    }
+
+    loadEditor(selectedName, structuredClone(trainConfig));
+
+    // Reset the hill setting whenever a train is loaded.
+    hill = 1;
+    hillSlider.value = "1";
+    hillValue.textContent = "1.00";
+}
+
+// Normal selection change.
+loadTrainSelect.addEventListener("change", loadSelectedTrain);
+
+// Also reload when the currently selected option is explicitly chosen again.
+let trainSelectedBeforePointer = null;
+
+loadTrainSelect.addEventListener("pointerdown", () => {
+    trainSelectedBeforePointer = loadTrainSelect.value;
+});
+
+loadTrainSelect.addEventListener("click", () => {
+    if (
+        trainSelectedBeforePointer !== null &&
+        loadTrainSelect.value === trainSelectedBeforePointer
+    ) {
+        loadSelectedTrain();
+    }
+
+    trainSelectedBeforePointer = null;
+});
+
+        setupDatabase("./trains.json")
+            .then(() => {
+                const trains = getAvailableTrains();
+                loadTrainSelect.replaceChildren();
+
+                for (const train of trains) {
+                    loadTrainSelect.appendChild(createElement("option", {
+                        value: train,
+                        textContent: train
+                    }));
+                }
+
+                if (trains.length === 0) {
+                    throw new Error("No trains were found in trains.json.");
+                }
+
+                const preferredTrain = "kiepe tram (50 mph)";
+                loadTrainSelect.value = trains.includes(preferredTrain)
+                    ? preferredTrain
+                    : trains[0];
+
+                loadTrainSelect.dispatchEvent(new Event("change"));
+
+                if (!animationStarted) {
+                    animationStarted = true;
+                    previousFrame = performance.now();
+                    requestAnimationFrame(loop);
+                }
+            })
+            .catch(error => {
+                console.error("Database initialisation failed:", error);
+                alert("Could not initialise the train database:\n\n" + error.message);
+            });
+
+
+        // ====================================================
+        // MAIN SIMULATION LOOP
+        // ====================================================
+
+        function loop() {
+            const now = performance.now();
+            const deltaTime = Math.max(0, now - previousFrame);
+            previousFrame = now;
+
+            throttle = Number(throttleSlider.value);
+
+            const speedPerMotorHz = Number(currentTrain.speed_per_motor_hz);
+
+            if (!Number.isFinite(speedPerMotorHz) || speedPerMotorHz <= 0) {
+                requestAnimationFrame(loop);
+                return;
+            }
+
+            const controls = currentTrain.controls ?? {};
+
+            const peakPoint = currentTrain.peak_point == null
+                ? 50
+                : Number(currentTrain.peak_point) * speedPerMotorHz;
+
+            const maxFrequency = currentTrain.max_speed == null
+                ? 120
+                : Number(currentTrain.max_speed) * speedPerMotorHz;
+
+            const safePeakPoint = Math.max(0.001, peakPoint);
+            const acceleration = (
+                throttle > 0
+                    ? (
+                        1 - Math.max(0, frequency - peakPoint) /
+                        Math.max(1, maxFrequency - peakPoint)
+                    ) * ((controls.accelleration ?? 2.5) * hill)
+                    : ((controls.decelleration ?? 3) / Math.max(0.25, hill))
+            ) * throttle;
+
+            frequency += deltaTime / 1000 * (acceleration * speedPerMotorHz);
+
+            power = Math.abs(throttle) *
+                Math.max(
+                    controls.min_power ?? 0.1,
+                    Math.min(1, frequency / safePeakPoint)
+                ) *
+                (controls.max_power ?? 1);
+
+            if (Math.abs(frequency) < 0.2) power = 0;
+            frequency = Math.max(0, frequency);
+
+            commandVF(
+                frequency,
+                power,
+                deltaTime
+            );
+
+            setSoundOptions({
+                volume: Number(volumeSlider.value)
+            });
+
+            const {
+                currentSpeed,
+                currentFrequency,
+                currentPower,
+                carrierFrequency,
+                pulses,
+                pulsingMode
+            } = getVFData();
+
+            frequencyElement.textContent = Number(currentFrequency ?? 0).toFixed(2);
+            speedElement.textContent = Number(currentSpeed ?? 0).toFixed(2);
+            carrierFrequencyElement.textContent = String(Math.round(Number(carrierFrequency ?? 0)));
+            powerElement.textContent = String(Math.floor(Number(currentPower ?? 0) * 100));
+            pulsesElement.textContent = String(pulses ?? 0);
+            methodText.textContent = String(pulsingMode ?? "—");
+            volumeVal.textContent = String(Math.floor(Number(volumeSlider.value) * 100));
+
+            // Carrier frequency is relevant only to ASYNC modes.
+            // Pulse count is relevant only to SYNC/SHE-PWM modes.
+            const activeMode = String(pulsingMode ?? "").toUpperCase();
+            const isAsyncMode = activeMode.startsWith("ASYNC");
+            const isPulseMode = activeMode === "SYNC" || activeMode === "SHE-PWM";
+
+            carrierStatus.hidden = !isAsyncMode;
+            pulsesStatus.hidden = !isPulseMode;
+
+            renderVisualisations();
+            requestAnimationFrame(loop);
+        }
+    </script>
+</body>
 </html>
