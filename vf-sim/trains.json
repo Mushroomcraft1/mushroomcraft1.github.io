@@ -42,49 +42,151 @@
 			}
 		]
 	},
-	"kiepe": {
-		"wheel_diameter": 0.640,
-		"gear_ratio_motor_side": 7,
+	"kiepe tram (50 mph)": {
+		"wheel_diameter": 0.58,
+		"gear_ratio_motor_side": 7.25,
 		"gear_ratio_wheel_side": 1,
 		"max_speed": 80,
-		"peak_point": 20,
+		"peak_point": 16,
 		"controls": {
-			"accelleration": 5,
-			"decelleration": 6,
+			"accelleration": 4.6,
+			"decelleration": 5.5,
 			"min_power": 0.1,
-			"max_power": 1,
-			"accelleration_notches": 100,
-			"decelleration_notches": 100
+			"max_power": 1
 		},
 		"pulsing": [
 			{
-				"min_speed": 0,
 				"mode": "ASYNC",
-				"carrier_frequency": 550
+				"min_speed": 0,
+				"carrier_frequency": 600
 			},
 			{
-				"min_speed": 9,
 				"mode": "SYNC",
+				"min_speed": 7,
 				"pulses": 15
 			},
 			{
-				"min_speed": 12,
 				"mode": "SYNC",
+				"min_speed": 9.5,
 				"pulses": 9
 			},
 			{
-				"min_speed": 18,
 				"mode": "SYNC",
+				"min_speed": 17,
 				"pulses": 7
 			},
 			{
-				"min_speed": 27,
 				"mode": "SYNC",
+				"min_speed": 26,
 				"pulses": 5
 			}
-		]
+		],
+		"rolling_resistance": 1
 	},
-	"ansaldobreda": {
+	"kiepe express tram (60 mph)": {
+		"wheel_diameter": 0.62,
+		"gear_ratio_motor_side": 6.4,
+		"gear_ratio_wheel_side": 1,
+		"max_speed": 100,
+		"peak_point": 16,
+		"controls": {
+			"accelleration": 4.6,
+			"decelleration": 5.6,
+			"min_power": 0.1,
+			"max_power": 1
+		},
+		"pulsing": [
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"carrier_frequency": 600
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 7,
+				"pulses": 15
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 9,
+				"pulses": 9
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 15,
+				"pulses": 7
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 26,
+				"pulses": 5
+			}
+		],
+		"rolling_resistance": 1
+	},
+	"ansaldobreda v2": {
+		"wheel_diameter": 0.71,
+		"gear_ratio_motor_side": 6.5,
+		"gear_ratio_wheel_side": 1,
+		"pulsing": [
+			{
+				"mode": "ASYNC-SWEEP",
+				"min_speed": 0,
+				"min_carrier_frequency": 550,
+				"max_carrier_frequency": 1500
+			},
+			{
+				"mode": "ASYNC",
+				"min_speed": 5,
+				"carrier_frequency": 1500
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 20,
+				"pulses": 23
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 22.4,
+				"pulses": 21
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 25,
+				"pulses": 19
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 28,
+				"pulses": 17
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 32,
+				"pulses": 15
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 36,
+				"pulses": 13
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 42,
+				"pulses": 9
+			}
+		],
+		"controls": {
+			"accelleration": 4.6,
+			"decelleration": 5.6,
+			"min_power": 0.1,
+			"max_power": 1
+		},
+		"max_speed": 85,
+		"peak_point": 20,
+		"rolling_resistance": 1
+	},
+	"ansaldobreda v1": {
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
