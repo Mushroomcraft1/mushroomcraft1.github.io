@@ -186,10 +186,11 @@
 		"peak_point": 20,
 		"rolling_resistance": 1
 	},
-	"ansaldobreda v1": {
+	"notansaldobreda": {
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
+		"motor_poles": 8,
 		"pulsing": [
 			{
 				"mode": "ASYNC",
@@ -298,6 +299,7 @@
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
+		"motor_poles": 8,
 		"pulsing": [
 			{
 				"mode": "ASYNC",
@@ -396,6 +398,7 @@
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
+		"motor_poles": 8,
 		"pulsing": [
 			{
 				"mode": "ASYNC",

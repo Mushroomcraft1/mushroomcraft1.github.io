@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> <!-- CUNT -->
 <html lang="en" theme="dark">
 <head>
     <meta charset="UTF-8">
@@ -516,76 +516,79 @@ canvas { position: relative; z-index: 0; display: block; width: 100%; height: 25
         // ====================================================
 
         function transitionPulsingConfig(previousConfig, newMode) {
-            const oldConfig = normalisePulsingConfig(previousConfig, currentTrain);
-            const oldMode = oldConfig.mode;
+    const oldConfig = normalisePulsingConfig(previousConfig, currentTrain);
+    const oldMode = oldConfig.mode;
 
-            const next = {
-                mode: newMode,
-                min_speed: oldConfig.min_speed ?? 0
-            };
+    const next = {
+        mode: newMode,
+        min_speed: oldConfig.min_speed ?? 0
+    };
 
-            const isRangeMode = mode =>
-                mode === "ASYNC-OSCILLATING" || mode === "ASYNC-SWEEP";
+    const isRangeMode = mode =>
+        mode === "ASYNC-OSCILLATING" || mode === "ASYNC-SWEEP";
 
-            const oldHasRange = isRangeMode(oldMode);
-            const oldCarrier = Number(oldConfig.carrier_frequency);
-            const oldMin = Number(oldConfig.min_carrier_frequency);
-            const oldMax = Number(oldConfig.max_carrier_frequency);
+    const oldHasRange = isRangeMode(oldMode);
+    const oldCarrier = Number(oldConfig.carrier_frequency);
+    const oldMin = Number(oldConfig.min_carrier_frequency);
+    const oldMax = Number(oldConfig.max_carrier_frequency);
 
-            // SYNC and SHE-PWM both use pulse count. Keep it when moving
-            // between those two modes.
-            if (
-                (newMode === "SYNC" || newMode === "SHE-PWM") &&
-                (oldMode === "SYNC" || oldMode === "SHE-PWM")
-            ) {
-                next.pulses = oldConfig.pulses;
-            }
+    // SYNC and SHE-PWM both use pulse count. Keep it when moving
+    // between those two modes.
+    if (
+        (newMode === "SYNC" || newMode === "SHE-PWM") &&
+        (oldMode === "SYNC" || oldMode === "SHE-PWM")
+    ) {
+        next.pulses = oldConfig.pulses;
+    }
 
-            // OSCILLATING and SWEEP share the same range. If moving from
-            // fixed-carrier ASYNC, initialise the range around that carrier.
-            if (isRangeMode(newMode)) {
-                if (
-                    oldHasRange &&
-                    Number.isFinite(oldMin) &&
-                    Number.isFinite(oldMax)
-                ) {
-                    next.min_carrier_frequency = oldMin;
-                    next.max_carrier_frequency = oldMax;
-                } else {
-                    const baseCarrier =
-                        oldMode === "ASYNC" && Number.isFinite(oldCarrier)
-                            ? oldCarrier
-                            : 400;
-                    next.min_carrier_frequency = Math.max(0, baseCarrier - 50);
-                    next.max_carrier_frequency = baseCarrier + 50;
-                }
-            }
+    // OSCILLATING and SWEEP share the same range.
+    // Preserve an existing range when switching between range modes.
+    // When coming from fixed ASYNC, initialise the range around
+    // the existing carrier frequency, +/- 50 Hz.
+    if (isRangeMode(newMode)) {
+        if (
+            oldHasRange &&
+            Number.isFinite(oldMin) &&
+            Number.isFinite(oldMax)
+        ) {
+            next.min_carrier_frequency = oldMin;
+            next.max_carrier_frequency = oldMax;
+        } else {
+            const baseCarrier =
+                oldMode === "ASYNC" && Number.isFinite(oldCarrier)
+                    ? oldCarrier
+                    : 400;
 
-            // Returning from a range mode to ASYNC uses its midpoint.
-            // SYNC deliberately has no carrier frequency at all.
-            if (newMode === "ASYNC") {
-                if (
-                    oldHasRange &&
-                    Number.isFinite(oldMin) &&
-                    Number.isFinite(oldMax)
-                ) {
-                    next.carrier_frequency = (oldMin + oldMax) / 2;
-                } else if (oldMode === "ASYNC" && Number.isFinite(oldCarrier)) {
-                    next.carrier_frequency = oldCarrier;
-                } else {
-                    next.carrier_frequency = 400;
-                }
-            }
-
-            // Keep the waveform and oscillation speed if the user remains
-            // in OSCILLATING. Entering it from another mode uses defaults.
-            if (newMode === "ASYNC-OSCILLATING" && oldMode === "ASYNC-OSCILLATING") {
-                next.oscillation_mode = oldConfig.oscillation_mode;
-                next.oscillation_frequency = oldConfig.oscillation_frequency;
-            }
-
-            return normalisePulsingConfig(next, currentTrain);
+            next.min_carrier_frequency = Math.max(0, baseCarrier - 50);
+            next.max_carrier_frequency = baseCarrier + 50;
         }
+    }
+
+    // Returning from a range mode to ASYNC uses its midpoint.
+    // SYNC deliberately has no carrier frequency at all.
+    if (newMode === "ASYNC") {
+        if (
+            oldHasRange &&
+            Number.isFinite(oldMin) &&
+            Number.isFinite(oldMax)
+        ) {
+            next.carrier_frequency = (oldMin + oldMax) / 2;
+        } else if (oldMode === "ASYNC" && Number.isFinite(oldCarrier)) {
+            next.carrier_frequency = oldCarrier;
+        } else {
+            next.carrier_frequency = 400;
+        }
+    }
+
+    // Keep the waveform and oscillation speed if the user remains
+    // in OSCILLATING. Entering it from another mode uses defaults.
+    if (newMode === "ASYNC-OSCILLATING" && oldMode === "ASYNC-OSCILLATING") {
+        next.oscillation_mode = oldConfig.oscillation_mode;
+        next.oscillation_frequency = oldConfig.oscillation_frequency;
+    }
+
+    return normalisePulsingConfig(next, currentTrain);
+}
 
 
         // ====================================================
@@ -938,52 +941,63 @@ canvas { position: relative; z-index: 0; display: block; width: 100%; height: 25
                     item.rows.set(key, row);
                     element.appendChild(row);
 
+
+
+
+
                     field.addEventListener("change", () => {
-                        const activeFields = PULSING_MODE_SCHEMA[item.config.mode].fields;
-                        if (!activeFields.includes(key)) return;
+    const activeFields = PULSING_MODE_SCHEMA[item.config.mode].fields;
 
-                        if (key === "oscillation_mode") {
-                            if (!OSCILLATION_MODES.includes(field.value)) {
-                                field.value = item.config[key];
-                                return;
-                            }
-                            item.config[key] = field.value;
-                        } else {
-                            const value = field.valueAsNumber;
-                            const minimum = definition.min ?? -Infinity;
+    if (!activeFields.includes(key)) return;
 
-                            if (!Number.isFinite(value) || value < minimum) {
-                                field.value = item.config[key] ?? "";
-                                return;
-                            }
+    if (key === "oscillation_mode") {
+        if (!OSCILLATION_MODES.includes(field.value)) {
+            field.value = item.config[key];
+            return;
+        }
 
-                            item.config[key] = value;
-                        }
+        item.config[key] = field.value;
 
-                        // Keep carrier ranges sensible.
-                        if (
-                            key === "min_carrier_frequency" &&
-                            item.config.min_carrier_frequency >= item.config.max_carrier_frequency
-                        ) {
-                            item.config.max_carrier_frequency = item.config.min_carrier_frequency + 50;
-                            item.fields.get("max_carrier_frequency").value =
-                                String(item.config.max_carrier_frequency);
-                        }
+    } else {
+        const value = field.valueAsNumber;
+        const minimum = definition.min ?? -Infinity;
 
-                        if (
-                            key === "max_carrier_frequency" &&
-                            item.config.max_carrier_frequency <= item.config.min_carrier_frequency
-                        ) {
-                            item.config.min_carrier_frequency = Math.max(
-                                0,
-                                item.config.max_carrier_frequency - 50
-                            );
-                            item.fields.get("min_carrier_frequency").value =
-                                String(item.config.min_carrier_frequency);
-                        }
+        if (!Number.isFinite(value) || value < minimum) {
+            field.value = item.config[key] ?? "";
+            return;
+        }
 
-                        commitPulsing();
-                    });
+        item.config[key] = value;
+    }
+
+    // Keep the range in the correct order without enforcing
+    // a 50 Hz difference.
+    // If the user moves one value past the other, bring the
+    // other value to the same frequency. Equal values are allowed.
+    if (
+        key === "min_carrier_frequency" &&
+        item.config.min_carrier_frequency > item.config.max_carrier_frequency
+    ) {
+        item.config.max_carrier_frequency =
+            item.config.min_carrier_frequency;
+
+        item.fields.get("max_carrier_frequency").value =
+            String(item.config.max_carrier_frequency);
+    }
+
+    if (
+        key === "max_carrier_frequency" &&
+        item.config.max_carrier_frequency < item.config.min_carrier_frequency
+    ) {
+        item.config.min_carrier_frequency =
+            item.config.max_carrier_frequency;
+
+        item.fields.get("min_carrier_frequency").value =
+            String(item.config.min_carrier_frequency);
+    }
+
+    commitPulsing();
+});
                 }
 
                 // Change mode by constructing a fresh config and carrying
