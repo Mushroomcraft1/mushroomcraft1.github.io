@@ -37,13 +37,12 @@ async function startSound() {
 			sampleRate: soundOptions.sampleRate
 		});
 
-		audioCtx.state
-
 		audioCtx.audioWorklet.addModule("processor.js")
 			.then(() => {
 				const smoothNode = new AudioWorkletNode(audioCtx, "vf-filter");
 				const speedDistortNode = new AudioWorkletNode(audioCtx, "vf-distort");
-				const noiseNode = new AudioWorkletNode(audioCtx, "vf-generator", { processorOptions: soundOptions });
+				const noiseNode = new AudioWorkletNode(audioCtx, "vf-generator" + 
+					(soundOptions.singlePhase ? "-single-phase" : ""), { processorOptions: soundOptions });
 				gainNode = new GainNode(audioCtx);
 				
 				noiseNode

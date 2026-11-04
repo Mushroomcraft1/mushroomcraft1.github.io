@@ -20,7 +20,6 @@ let sineFreq = 0;
 let pulsingPower;
 let sineFreqTime;
 let sineFreqTimeInt;
-let microsecMod;
 
 let pulsePattern;
 let noOfSwitches;
@@ -104,6 +103,7 @@ function setPulseCount(newPulseCount) {
 function setCarrierFrequency(newFrequency) {
     PWMfreq = newFrequency;
     PWMfreqTime = 1000000 / newFrequency;
+    if (PWMfreq < 1) PWMfreqTime = 0;
     PWMfreqTimeInt = Math.floor(PWMfreqTime);
 }
 
@@ -133,6 +133,8 @@ function setBulkParameters(parameters) {
     if (parameters.power != null) pulsingPower = parameters.power;
     if (parameters.oscillation_function != null) oscillationFunction = eval(parameters.oscillation_function); else oscillationFunction = null;
 }
+
+let x = 0, y = 0; // Variables for the oscillation function to use
 
 function pulse(microsec, pwmMicrosec) {
     let [mask1, mask2, mask3, mask] = [0];

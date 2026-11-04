@@ -36,7 +36,7 @@ let oscillationFrequency;
 
 let soundOptions;
 
-class NoiseGenerator extends AudioWorkletProcessor {
+class NoiseGenerator3Phase extends AudioWorkletProcessor {
 	constructor(options) {
 		super();
 		soundOptions = options.processorOptions;
@@ -103,6 +103,69 @@ class NoiseGenerator extends AudioWorkletProcessor {
 	}
 }
 
+class NoiseGeneratorSinglePhase extends AudioWorkletProcessor {
+	constructor(options) {
+		super();
+		soundOptions = options.processorOptions;
+		sampleRate = options.processorOptions.sampleRate;
+		microsecPerSamples = 1000 / (sampleRate / 1000)
+		console.log(sampleRate + "Hz")
+		console.log(soundOptions)
+
+		this.port.onmessage = ((event) => {
+			const d = event.data.deltaTime;
+			if (!isNaN(d) && d > 0 && soundOptions.useInterpolation) {
+				deltaTime = d * 1000;
+				prevFrequency = sineFreq;
+				prevPower = pulsingPower;
+				interpolationProgress = 0;
+			}
+
+			setBulkParameters(event.data);
+			
+			oscillationFrequency = event.data.oscillation_frequency;
+			targetFrequency = event.data.frequency;
+			targetPower = event.data.power;
+		});
+	}
+
+	process(inputs, outputs, parameters) {
+		const output = outputs[0];
+		const nowBuffering = output[0];
+		const len = nowBuffering.length;
+
+		if (soundOptions.useInterpolation && deltaTime > 0) {
+			const interp = Math.min(1, interpolationProgress / deltaTime);
+			setFrequency(prevFrequency + interp * (targetFrequency - prevFrequency));
+			setPower(prevPower + interp * (targetPower - prevPower));
+			interpolationProgress += len * microsecPerSamples;
+		}
+
+		const noOfSamples = 1000000 / sineFreq / microsecPerSamples;
+
+		idx = Math.floor(noOfSamples * sineProgress);
+
+		for (let i = 0; i < len; ++i) {
+			const registers = pulse((i + idx) * microsecPerSamples, (i + PWMIndex) * microsecPerSamples);
+			let current = registers & high1 ? 1 : registers & low1 ? -1 : 0;
+
+			nowBuffering[i] = current * 3 * powerIncrementFactor; // make it the same volume as 3 phase sim
+		}
+		PWMIndex += len;
+		
+		if (oscillationFrequency != null) {
+			PWMIndex %= 1000000 / oscillationFrequency / microsecPerSamples;
+		} else {			
+			PWMIndex %= 1000000 / PWMfreq / microsecPerSamples;
+		}
+
+		sineProgress += len / noOfSamples;
+		sineProgress %= 1;
+
+		return true;
+	}
+}
+
 let sum = 0;
 let prev;
 let smooth;
@@ -152,6 +215,7 @@ class Distort extends AudioWorkletProcessor {
 	}
 }
 
-registerProcessor("vf-generator", NoiseGenerator);
+registerProcessor("vf-generator", NoiseGenerator3Phase);
+registerProcessor("vf-generator-single-phase", NoiseGeneratorSinglePhase);
 registerProcessor("vf-filter", NoiseFilter);
 registerProcessor("vf-distort", Distort);

@@ -124,7 +124,7 @@
 		],
 		"rolling_resistance": 1
 	},
-	"ansaldobreda v2": {
+	"ansaldobreda": {
 		"wheel_diameter": 0.71,
 		"gear_ratio_motor_side": 6.5,
 		"gear_ratio_wheel_side": 1,
@@ -189,8 +189,9 @@
 	"notansaldobreda": {
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
-		"gear_ratio_wheel_side": 1,
-		"motor_poles": 8,
+		"gear_ratio_wheel_side": 2,
+		"max_speed": 120,
+		"motor_poles": 4,
 		"pulsing": [
 			{
 				"mode": "ASYNC",
@@ -211,14 +212,20 @@
 			},
 			{
 				"mode": "AUTO-SYNC",
-				"min_speed": 20,
+				"min_speed": 16,
 				"carrier_frequency": 400,
 				"min_pulses": 1,
 				"max_pulses": 211,
 				"pulse_step": 2,
 				"max_switching_frequency": 550
 			}
-		]
+		],
+		"controls": {
+			"accelleration": 5,
+			"decelleration": 6,
+			"min_power": 0
+		},
+		"peak_point": 20
 	},
 	"taurus": {
 		"wheel_diameter": 0.84,
@@ -257,6 +264,16 @@
 				"mode": "SYNC",
 				"pulses": 5,
 				"min_motor_frequency": 35
+			},
+			{
+				"mode": "SYNC",
+				"pulses": 3,
+				"min_motor_frequency": 50
+			},
+			{
+				"mode": "SYNC",
+				"pulses": 1,
+				"min_motor_frequency": 75
 			}
 		]
 	},
@@ -429,6 +446,7 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 0,
+				"oscillation_frequency": -1,
 				"oscillation_mode": "RANDOM",
 				"min_carrier_frequency": 1200,
 				"max_carrier_frequency": 2400

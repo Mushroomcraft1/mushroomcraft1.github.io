@@ -1,5 +1,25 @@
-export { setupDatabase, setTrain, commandVF, setTrainSpeed, setSoundUpdateFunction, getVFData, getTrainData, getAvailableTrains };
+export { setupDatabase, setTrain, commandVF, setTrainSpeed, setSoundUpdateFunction, getVFData, getTrainData, getAvailableTrains,
+	pulsingModes, oscillationModes };
 import { setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod } from "./pulsing.js";
+
+const pulsingModes = [
+	"SYNC",
+	"AUTO-SYNC",
+	"SHE-PWM",
+	"ASYNC",
+	"ASYNC-STEP",
+	"ASYNC-OSCILLATING",
+	"ASYNC-SWEEP"
+]
+
+const oscillationModes = [
+	"TRIANGLE",
+	"SAW-RISING",
+	"SAW-FALLING",
+	"SINE",
+	"SQUARE",
+	"RANDOM"
+]
 
 let trainDB = new Map();
 
@@ -134,7 +154,8 @@ function setTrain(trainID) {
 			}
 			case "ASYNC-OSCILLATING":
 			{
-				checkNull("oscillation_mode", "oscillation_frequency");
+				checkNull("oscillation_mode");
+				if (pulseConfig.oscillation_mode != "RANDOM") checkNull("oscillation_frequency");
 			}
 			case "ASYNC-SWEEP":
 			{
@@ -279,7 +300,11 @@ function commandVF(frequency, power, deltaTime) {
 								break
 							case "RANDOM":
 								funct = `(microsec) => {
-									return ${min_carrier_frequency} + Math.random() * ${max_carrier_frequency - min_carrier_frequency};
+									if (microsec > PWMfreqTimeInt) {
+										return ${min_carrier_frequency} + Math.random() * ${max_carrier_frequency - min_carrier_frequency};
+									} else {
+										return PWMfreq;	
+									}
 								}`
 								break
 						}
