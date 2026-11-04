@@ -45,7 +45,7 @@
 	"kiepe": {
 		"wheel_diameter": 0.640,
 		"gear_ratio_motor_side": 7,
-		"gear_ratio_wheel_side": 4,
+		"gear_ratio_wheel_side": 1,
 		"max_speed": 80,
 		"peak_point": 20,
 		"controls": {
@@ -65,22 +65,22 @@
 			{
 				"min_speed": 9,
 				"mode": "SYNC",
-				"pulses": 21
+				"pulses": 15
 			},
 			{
 				"min_speed": 12,
 				"mode": "SYNC",
-				"pulses": 12
+				"pulses": 9
 			},
 			{
 				"min_speed": 18,
 				"mode": "SYNC",
-				"pulses": 9
+				"pulses": 7
 			},
 			{
 				"min_speed": 27,
 				"mode": "SYNC",
-				"pulses": 7
+				"pulses": 5
 			}
 		]
 	},

@@ -92,8 +92,15 @@ function setTrain(trainID) {
 
 	if (speed_per_motor_hz == null || speed_per_motor_hz < 0) {
 		checkNull("wheel_diameter", "gear_ratio_motor_side", "gear_ratio_wheel_side");
-		speed_per_motor_hz = (7.2 * Math.PI * wheel_diameter) 
-			/ ((motor_poles ?? 4) * (gear_ratio_motor_side / gear_ratio_wheel_side))
+	}
+
+	if (gear_ratio_motor_side == null || gear_ratio_wheel_side == null || wheel_diameter == null) {
+		checkNull("speed_per_motor_hz");
+	} else {
+		speed_per_motor_hz =
+				((motor_poles ?? 4) *
+				(gear_ratio_motor_side / gear_ratio_wheel_side)) /
+				(7.2 * Math.PI * wheel_diameter);
 	}
 
 	currentTrainConfig.speed_per_motor_hz = speed_per_motor_hz;
@@ -157,6 +164,8 @@ function setTrain(trainID) {
 	}
 
 	console.log("Loaded train " + (typeof trainID == "string" ? trainID : "from object"));
+	
+	unaltered.speed_per_motor_hz = speed_per_motor_hz;
 	return unaltered;
 }
 
@@ -311,6 +320,7 @@ function getVFData() {
 		carrierFrequency: PWMfreq,
 		pulses: pulsePattern,
 		pulsingMode: pulsingMethod,
+		speedPerMotorHz: currentTrainConfig.speed_per_motor_hz
 	};
 }
 

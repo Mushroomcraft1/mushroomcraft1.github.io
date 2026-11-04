@@ -23,7 +23,7 @@ let sineFreqTimeInt;
 let microsecMod;
 
 let pulsePattern;
-let noOfPulses;
+let noOfSwitches;
 
 const SHEPulsing = [
     [36.8699],
@@ -92,10 +92,9 @@ function setPower(newPower) {
 */
 function setPulseCount(newPulseCount) {
     pulsePattern = newPulseCount;
-    noOfPulses = newPulseCount * 4;
+    noOfSwitches = newPulseCount * 4;
 
     pulseTimes = SHEPulsing[(pulsePattern - 1) / 2] ?? SHEPulsing[0];
-    noOfPulses = pulsePattern * 4;
 }
 
 /**
@@ -172,7 +171,7 @@ function pulse(microsec, pwmMicrosec) {
             break;
         }
         case "SYNC": {
-            const triangleSync = abs((noOfPulses * progress % 2) - 1);
+            const triangleSync = abs((noOfSwitches * progress % 2) - 1);
 
             const pattern1 = Sine1 > 0 ? high1 : low1;
             const pattern2 = Sine2 > 0 ? high2 : low2;

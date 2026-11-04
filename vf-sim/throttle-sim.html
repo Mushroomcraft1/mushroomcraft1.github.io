@@ -411,28 +411,28 @@ canvas { position: relative; z-index: 0; display: block; width: 100%; height: 25
         // ====================================================
 
         function calculateSpeedPerMotorHz(train) {
-    const wheelDiameter = Number(train.wheel_diameter);
-    const motorPoles = Number(train.motor_poles ?? 4);
-    const motorSide = Number(train.gear_ratio_motor_side);
-    const wheelSide = Number(train.gear_ratio_wheel_side);
+            const wheelDiameter = Number(train.wheel_diameter);
+            const motorPoles = Number(train.motor_poles ?? 4);
+            const motorSide = Number(train.gear_ratio_motor_side);
+            const wheelSide = Number(train.gear_ratio_wheel_side);
 
-    if (
-        !Number.isFinite(wheelDiameter) || wheelDiameter <= 0 ||
-        !Number.isFinite(motorPoles) || motorPoles <= 0 ||
-        motorPoles % 2 !== 0 ||
-        !Number.isFinite(motorSide) || motorSide <= 0 ||
-        !Number.isFinite(wheelSide) || wheelSide <= 0
-    ) {
-        return NaN;
-    }
+            if (
+                !Number.isFinite(wheelDiameter) || wheelDiameter <= 0 ||
+                !Number.isFinite(motorPoles) || motorPoles <= 0 ||
+                motorPoles % 2 !== 0 ||
+                !Number.isFinite(motorSide) || motorSide <= 0 ||
+                !Number.isFinite(wheelSide) || wheelSide <= 0
+            ) {
+                return NaN;
+            }
 
-    const gearRatio = motorSide / wheelSide;
+            const gearRatio = motorSide / wheelSide;
 
-    // Electrical motor frequency in Hz per km/h.
-    // Motor electrical frequency uses pole pairs, not total poles.
-    return (motorPoles * gearRatio) /
-        (7.2 * Math.PI * wheelDiameter);
-}
+            // Electrical motor frequency in Hz per km/h.
+            // Motor electrical frequency uses pole pairs, not total poles.
+            return (motorPoles * gearRatio) /
+                (7.2 * Math.PI * wheelDiameter);
+        }
 
 
         // ====================================================
@@ -1201,7 +1201,8 @@ canvas { position: relative; z-index: 0; display: block; width: 100%; height: 25
             waveHeight: 0.4,
             phase1Position: 0.5,
             sampleRate: 20000,
-            samplesPerPixel: 4
+            samplesPerPixel: 4,
+            phase1Colour: "#f0dc65"
         });
 
 
