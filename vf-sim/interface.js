@@ -1,6 +1,6 @@
 export { setupDatabase, setTrain, commandVF, setTrainSpeed, setSoundUpdateFunction, getVFData, getTrainData, getAvailableTrains,
 	pulsingModes, oscillationModes };
-import { setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod } from "./pulsing.js";
+import { setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod, setPower, setFrequency } from "./pulsing.js";
 
 const pulsingModes = [
 	"SYNC",
@@ -9,7 +9,8 @@ const pulsingModes = [
 	"ASYNC",
 	"ASYNC-STEP",
 	"ASYNC-OSCILLATING",
-	"ASYNC-SWEEP"
+	"ASYNC-SWEEP",
+	"MUSIC"
 ]
 
 const oscillationModes = [
@@ -26,6 +27,10 @@ let trainDB = new Map();
 let currentTrainConfig;
 let soundUpdateFunction;
 let prevTime = 0;
+
+let trainLoadID = 0;
+let prevTrainLoadID = 0;
+let prevPulsingIdx = 0;
 
 /**
  * @param {Object} JSON 
@@ -71,6 +76,7 @@ async function setupDatabase(trainConfigSource) {
  */
 function setSoundUpdateFunction(funct) {
 	soundUpdateFunction = funct;
+	prevPulsingIdx = -1;
 }
 
 /**
@@ -167,6 +173,10 @@ function setTrain(trainID) {
 				checkNull("min_pulses", "max_pulses", "pulse_step", "max_switching_frequency")		
 				break;
 			}
+			case "MUSIC":
+			{
+				break;
+			}
 			default:
 			{
 				throw "Invalid pulsing mode at index " + idx;
@@ -186,6 +196,8 @@ function setTrain(trainID) {
 
 	console.log("Loaded train " + (typeof trainID == "string" ? trainID : "from object"));
 	
+	++trainLoadID;
+
 	unaltered.speed_per_motor_hz = speed_per_motor_hz;
 	return unaltered;
 }
@@ -232,17 +244,19 @@ function setTrainSpeed(speed) {
 function commandVF(frequency, power, deltaTime) {
 	if (currentTrainConfig == null) throw "No train selected"
 
-	let data = { mode: "OFF", frequency: 0, power: 0 };
+	let data = { mode: "OFF", power: 0, frequency: 0 };
+	let idx = -1;
 
 	const absFrequency = Math.abs(frequency);
 
 	for (const pulsing of currentTrainConfig.pulsing) {
+		++idx;
 		const { min_motor_frequency, max_motor_frequency, oscillation_mode, oscillation_frequency,
 			pulses, mode, carrier_frequency, carrier_frequencies, min_carrier_frequency, 
 			max_carrier_frequency, min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulsing;
 
 		if (absFrequency >= min_motor_frequency && absFrequency < max_motor_frequency) {
-			data = { pulses, mode, carrier_frequency, oscillation_frequency, power, frequency };
+			data = { mode, power, frequency };
 			data.oscillation_function = null;
 			switch (mode) {
 				case "AUTO-SYNC":
@@ -300,15 +314,12 @@ function commandVF(frequency, power, deltaTime) {
 								break
 							case "RANDOM":
 								funct = `(microsec) => {
-									if (microsec > PWMfreqTimeInt) {
-										return ${min_carrier_frequency} + Math.random() * ${max_carrier_frequency - min_carrier_frequency};
-									} else {
-										return PWMfreq;	
-									}
+									return ${min_carrier_frequency} + Math.random() * ${max_carrier_frequency - min_carrier_frequency};
 								}`
 								break
 						}
 						data.oscillation_function = funct;
+						data.oscillation_frequency = oscillation_frequency;
 						data.mode = "ASYNC";
 						break;
 					}
@@ -319,10 +330,20 @@ function commandVF(frequency, power, deltaTime) {
 							/ (${max_motor_frequency - min_motor_frequency})
 							* (${max_carrier_frequency - min_carrier_frequency})
 							+ ${min_carrier_frequency}; 
-							return Math.min(Math.max(${min_carrier_frequency}, calculatedCarrierFrequency), ${max_carrier_frequency});
+							return calculatedCarrierFrequency;
 						}`
-						data.oscillation_frequency = null;
 						data.mode = "ASYNC";
+						break;
+					}
+				case "ASYNC":
+					{
+						data.carrier_frequency = carrier_frequency;
+						break;
+					}
+				case "SYNC":
+				case "SHE-PWM":
+					{
+						data.pulses = pulses;
 						break;
 					}
 			}
@@ -331,10 +352,17 @@ function commandVF(frequency, power, deltaTime) {
 	}
 
 
+	if (prevTrainLoadID == trainLoadID && idx == prevPulsingIdx) {
+		data.oscillation_function = -1;
+	}
+
 	setBulkParameters(data);
 	if (soundUpdateFunction != null) {
 		soundUpdateFunction(data, deltaTime);
 	}
+		
+	prevTrainLoadID = trainLoadID;
+	prevPulsingIdx = idx;
 }
 
 function getVFData() {

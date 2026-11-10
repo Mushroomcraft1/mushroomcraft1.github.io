@@ -1,5 +1,5 @@
 export { setFrequency, setPower, setPulseCount, setCarrierFrequency, setOscillationFunction,
-    setPulsingMethod, pulse, setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, 
+    setPulsingMethod, pulse, setBulkParameters, sineFreq, pulsingPower, PWMfreq, PWMfreqTime, pulsePattern, 
     pulsingMethod, high1, low1, high2, low2, high3, low3, highMask, lowMask, fullMask };
 
 // "ASYNC", "SYNC", "SHE-PWM"
@@ -9,17 +9,16 @@ let oscillationFunction;
 let Sine1 = 0;
 let Sine2 = 0;
 let Sine3 = 0;
-let percentageTime1 = 0;
-let percentageTime2 = 0;
-let percentageTime3 = 0;
 
 let PWMfreq = 0; 
 let PWMfreqTime = 0;
-let PWMfreqTimeInt = 0;
 let sineFreq = 0;
 let pulsingPower;
 let sineFreqTime;
 let sineFreqTimeInt;
+
+let pulseStartTime = 0;
+let prevMicrosec = 0;
 
 let pulsePattern;
 let noOfSwitches;
@@ -40,6 +39,8 @@ let pulseTimes;
 
 const sin = Math.sin;
 const abs = Math.abs;
+const min = Math.min;
+const max = Math.max;
 const floor = Math.floor;
 const PI = Math.PI;
 let tau = PI * 2;
@@ -104,15 +105,30 @@ function setCarrierFrequency(newFrequency) {
     PWMfreq = newFrequency;
     PWMfreqTime = 1000000 / newFrequency;
     if (PWMfreq < 1) PWMfreqTime = 0;
-    PWMfreqTimeInt = Math.floor(PWMfreqTime);
 }
+
+let x = 0, y = 0; // Variables for the oscillation function to use
 
 /**
  * Sets the oscillation function in Async mode
  * @param {Float} newFrequency 
  */
 function setOscillationFunction(newFunction) {
-    oscillationFunction = newFunction;
+    if (newFunction != null) {
+        switch (typeof newFunction) {
+            case "function":
+                oscillationFunction = newFunction;
+                break;
+            case "string":
+                oscillationFunction = eval(newFunction);
+                break;
+            default:
+                return;
+        }
+        x = 0, y = 0;
+    } else {
+        oscillationFunction = null;
+    }
 }
 
 /**
@@ -129,17 +145,15 @@ function setBulkParameters(parameters) {
     if (parameters.frequency != null) setFrequency(parameters.frequency);
     if (parameters.carrier_frequency != null) setCarrierFrequency(parameters.carrier_frequency);
     if (parameters.pulses != null) setPulseCount(parameters.pulses);
-    if (parameters.mode != null) pulsingMethod = parameters.mode;
-    if (parameters.power != null) pulsingPower = parameters.power;
-    if (parameters.oscillation_function != null) oscillationFunction = eval(parameters.oscillation_function); else oscillationFunction = null;
+    if (parameters.mode != null) setPulsingMethod(parameters.mode);
+    if (parameters.power != null) setPower(parameters.power);
+    setOscillationFunction(parameters.oscillation_function);
 }
 
-let x = 0, y = 0; // Variables for the oscillation function to use
 
-function pulse(microsec, pwmMicrosec) {
+function pulse(microsec, asyncMicrosec) {
     let [mask1, mask2, mask3, mask] = [0];
 
-    const curTime = (pwmMicrosec ?? microsec) % PWMfreqTimeInt;
     const microsecMod = microsec % sineFreqTimeInt;
 
     const progress = (microsecMod / sineFreqTime);
@@ -155,35 +169,35 @@ function pulse(microsec, pwmMicrosec) {
         Sine3 = sin(progress * tau - offset240deg);
     }
 
+    const pattern1 = Sine1 > 0 ? high1 : low1;
+    const pattern2 = Sine2 > 0 ? high2 : low2;
+    const pattern3 = Sine3 > 0 ? high3 : low3;
+
     switch (pulsingMethod) { 
         case "ASYNC": {
-            if (oscillationFunction != null) setCarrierFrequency(oscillationFunction(pwmMicrosec ?? microsec));
+            if (asyncMicrosec != null) microsec = asyncMicrosec;
+            if ((microsec - pulseStartTime) >= PWMfreqTime) {
+                if (oscillationFunction != null) setCarrierFrequency(oscillationFunction(microsec));
+                pulseStartTime += PWMfreqTime;
+            } 
+            if (pulseStartTime > microsec + PWMfreqTime) {
+                pulseStartTime = 0;
+            }
 
-            percentageTime1 = abs(Sine1 * pulsingPower) * PWMfreqTime;
-            percentageTime2 = abs(Sine2 * pulsingPower) * PWMfreqTime;
-            percentageTime3 = abs(Sine3 * pulsingPower) * PWMfreqTime;
+            const curTime = microsec - pulseStartTime % PWMfreqTime;
+            const triangleSync = abs((curTime / PWMfreqTime * 2) % 2  - 1);
 
-            mask1 = (Sine1 > 0 ? high1 : low1);
-            mask2 = (Sine2 > 0 ? high2 : low2);
-            mask3 = (Sine3 > 0 ? high3 : low3);
-            
-            mask = ((curTime < percentageTime1) ? mask1 : 0)
-                    | ((curTime < percentageTime2) ? mask2 : 0)
-                    | ((curTime < percentageTime3) ? mask3 : 0);
+            mask = ((abs(Sine1 * pulsingPower) > triangleSync) ? pattern1 : 0)
+                 | ((abs(Sine2 * pulsingPower) > triangleSync) ? pattern2 : 0)
+                 | ((abs(Sine3 * pulsingPower) > triangleSync) ? pattern3 : 0);
             break;
         }
-        case "SYNC": {
+        case "SYNC": {           
             const triangleSync = abs((noOfSwitches * progress % 2) - 1);
 
-            const pattern1 = Sine1 > 0 ? high1 : low1;
-            const pattern2 = Sine2 > 0 ? high2 : low2;
-            const pattern3 = Sine3 > 0 ? high3 : low3;
-
-            mask1 = abs(Sine1 * pulsingPower) > triangleSync ? pattern1 : 0;
-            mask2 = abs(Sine2 * pulsingPower) > triangleSync ? pattern2 : 0;
-            mask3 = abs(Sine3 * pulsingPower) > triangleSync ? pattern3 : 0;
-
-            mask = mask1 | mask2 | mask3;
+            mask = ((abs(Sine1 * pulsingPower) > triangleSync) ? pattern1 : 0)
+                 | ((abs(Sine2 * pulsingPower) > triangleSync) ? pattern2 : 0)
+                 | ((abs(Sine3 * pulsingPower) > triangleSync) ? pattern3 : 0);
             break;
         }
         case "SHE-PWM": {
@@ -218,6 +232,8 @@ function pulse(microsec, pwmMicrosec) {
             break;
         }
     }
+
+    prevMicrosec = microsec;
     
     registers = (~mask) & fullMask; // turn off reverse
     registers = mask;

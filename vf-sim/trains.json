@@ -42,6 +42,65 @@
 			}
 		]
 	},
+	"hitachi": {
+		"wheel_diameter": 0.9,
+		"motor_poles": 4,
+		"gear_ratio_motor_side": 5,
+		"gear_ratio_wheel_side": 1,
+		"max_speed": 225,
+		"peak_point": 65,
+		"controls": {
+			"acceleration": 4.6,
+			"deceleration": 5.6
+		},
+		"pulsing": [
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"carrier_frequency": 700
+			},
+			{
+				"mode": "ASYNC-SWEEP",
+				"min_speed": 40,
+				"min_carrier_frequency": 700,
+				"max_carrier_frequency": 1150
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 80,
+				"pulses": 3
+			}
+		]
+	},
+	"test": {
+		"wheel_diameter": 0.84,
+		"gear_ratio_motor_side": 6,
+		"gear_ratio_wheel_side": 1,
+		"pulsing": [
+			{
+				"mode": "ASYNC-SWEEP",
+				"carrier_frequency": 1500,
+				"min_speed": 0,
+				"min_carrier_frequency": 400,
+				"max_carrier_frequency": 1000
+			},
+			{
+				"mode": "AUTO-SYNC",
+				"min_speed": 10,
+				"carrier_frequency": 400,
+				"pulses": 21,
+				"min_pulses": 1,
+				"max_pulses": 71,
+				"pulse_step": 2,
+				"max_switching_frequency": 1000
+			}
+		],
+		"controls": {
+			"acceleration": 5,
+			"deceleration": 6
+		},
+		"max_speed": 60
+	},
 	"kiepe tram (50 mph)": {
 		"wheel_diameter": 0.58,
 		"gear_ratio_motor_side": 7.25,
@@ -49,8 +108,8 @@
 		"max_speed": 80,
 		"peak_point": 16,
 		"controls": {
-			"accelleration": 4.6,
-			"decelleration": 5.5,
+			"acceleration": 4.6,
+			"deceleration": 5.5,
 			"min_power": 0.1,
 			"max_power": 1
 		},
@@ -90,8 +149,8 @@
 		"max_speed": 100,
 		"peak_point": 16,
 		"controls": {
-			"accelleration": 4.6,
-			"decelleration": 5.6,
+			"acceleration": 4.6,
+			"deceleration": 5.6,
 			"min_power": 0.1,
 			"max_power": 1
 		},
@@ -177,8 +236,8 @@
 			}
 		],
 		"controls": {
-			"accelleration": 4.6,
-			"decelleration": 5.6,
+			"acceleration": 4.6,
+			"deceleration": 5.6,
 			"min_power": 0.1,
 			"max_power": 1
 		},
@@ -221,8 +280,8 @@
 			}
 		],
 		"controls": {
-			"accelleration": 5,
-			"decelleration": 6,
+			"acceleration": 5,
+			"deceleration": 6,
 			"min_power": 0
 		},
 		"peak_point": 20
@@ -234,8 +293,8 @@
 		"max_speed": 357,
 		"peak_point": 200,
 		"controls": {
-			"accelleration": 7.2,
-			"decelleration": 6,
+			"acceleration": 7.2,
+			"deceleration": 6,
 			"min_power": 0.1,
 			"max_power": 1
 		},
@@ -284,7 +343,6 @@
 		"pulsing": [
 			{
 				"mode": "ASYNC-OSCILLATING",
-				"carrier_frequency": 1500,
 				"min_speed": 0,
 				"oscillation_mode": "SAW-RISING",
 				"oscillation_frequency": 6.5,
@@ -294,7 +352,6 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 40,
-				"carrier_frequency": 400,
 				"oscillation_mode": "SAW-RISING",
 				"oscillation_frequency": 6.5,
 				"min_carrier_frequency": 650,
@@ -303,7 +360,6 @@
 			{
 				"mode": "ASYNC-OSCILLATING",
 				"min_speed": 70,
-				"carrier_frequency": 400,
 				"pulses": 3,
 				"oscillation_mode": "SAW-RISING",
 				"oscillation_frequency": 6.5,
@@ -458,6 +514,13 @@
 				"oscillation_frequency": 120,
 				"min_carrier_frequency": 1200,
 				"max_carrier_frequency": 2400
+			},
+			{
+				"mode": "MUSIC",
+				"tempo": 120,
+				"min_speed": 30,
+				"frequencies": [440, 0],
+				"beats": [10, 1]
 			}
 		],
 		"controls": {}

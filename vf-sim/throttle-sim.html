@@ -116,7 +116,7 @@
 		</div>
 		<div class="info right">
 			<div>Mode: <span id="method"></span></div>
-			<div>Carrier Frequency:  <span id="carrier-frequency-val"></span> Hz</div>
+			<div>Pulsing Frequency:  <span id="pulsing-frequency-val"></span> Hz</div>
 			<div>Pulses:  <span id="pulses-val"></span></div>
 		</div>
 		<div class="throttle">
@@ -145,7 +145,7 @@
 		import { setupDatabase, setTrain, setTrainSpeed, setSoundUpdateFunction, commandVF, getVFData, getTrainData, getAvailableTrains,
 			pulsingModes, oscillationModes
 		} from "./interface.js";
-		import { setSoundOptions, startSound, stopSound } from "./sound.js";
+		import { setSoundOptions, startSound, stopSound, getSoundData } from "./sound.js";
 		import { setCanvas, setRenderOptions, renderVisualisations } from "./render.js";
 
 		let currentTrain = { controls: {} };
@@ -281,19 +281,19 @@
 
 			if (currentTrain.controls == null) currentTrain.controls = {};
 
-			const accelleration = createElement("input", {
-				type: "number", value: currentTrain.controls.accelleration, step: 1, min: 0
+			const acceleration = createElement("input", {
+				type: "number", value: currentTrain.controls.acceleration, step: 1, min: 0
 			}, ["thin"]);
-			accelleration.addEventListener("change", () => {
-				currentTrain.controls.accelleration = Number(accelleration.value);
+			acceleration.addEventListener("change", () => {
+				currentTrain.controls.acceleration = Number(acceleration.value);
 				loadTrainToSim();
 			});
 
-			const decelleration = createElement("input", {
-				type: "number", value: currentTrain.controls.decelleration, step: 1, min: 0
+			const deceleration = createElement("input", {
+				type: "number", value: currentTrain.controls.deceleration, step: 1, min: 0
 			}, ["thin"]);
-			decelleration.addEventListener("change", () => {
-				currentTrain.controls.decelleration = Number(decelleration.value);
+			deceleration.addEventListener("change", () => {
+				currentTrain.controls.deceleration = Number(deceleration.value);
 				loadTrainToSim();
 			});
 
@@ -500,8 +500,8 @@
 				createInput("Max Speed (km/h): ", maxSpeed),
 				createInput("Peak Point: ", peakPoint),
 				createInput("Rolling Resistance: ", rollingResistance),
-				createInput("Acceleration (km/h): ", accelleration),
-				createInput("Decelleration (km/h): ", decelleration),
+				createInput("Acceleration (km/h): ", acceleration),
+				createInput("Deceleration (km/h): ", deceleration),
 				createInput("Min Power: ", minPower),
 				createInput("Max Power: ", maxPower),
 				createInput("Pulsing: ", addPulsing),
@@ -676,7 +676,7 @@
 		});
 
 		const frequencyElement = document.getElementById("sine-frequency-val");
-		const carrierFrequencyElement = document.getElementById("carrier-frequency-val");
+		const pulsingFrequencyElement = document.getElementById("pulsing-frequency-val");
 		const speedElement = document.getElementById("speed-val");
 		const powerElement = document.getElementById("power-val");
 		const pulsesElement = document.getElementById("pulses-val");
@@ -719,9 +719,10 @@
 						textContent: train
 					}));
 				}
-				loadTrain.value = "kiepe tram (50 mph)";
+				loadTrain.value = "static";
 				loadTrain.dispatchEvent(new Event("change"));
 				loadTrainToSim();
+				frequency = 38;
 				loop();
 			});
 		
@@ -730,8 +731,8 @@
 			renderSinglePhase: true,
 			waveHeight: 0.4,
 			phase1Position: 0.5,
-			sampleRate: 20000,
-			samplesPerPixel: 4
+			sampleRate: 80000,
+			samplesPerPixel: 2
 		});
 		setSoundOptions({
 			useInterpolation: true
@@ -739,7 +740,7 @@
 
 		let prevFrame = 0;
 
-		let frequency = 0;
+		let frequency = 60;
 		let power = 0;
 		let throttle = 0;
 		let hill = 1;
@@ -758,10 +759,10 @@
 
 			const peakPoint = currentTrain.peak_point == null ? 50 : currentTrain.peak_point * currentTrain.speed_per_motor_hz;
 			const maxFrequency = currentTrain.max_speed == null ? 120 : currentTrain.max_speed * currentTrain.speed_per_motor_hz;
-			const accelleration = (throttle > 0 ? (1 - Math.max(0, frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
-			 * ((controls.accelleration ?? 2.5) * hill): (controls.decelleration ?? 3) / hill) * throttle;
+			const acceleration = (throttle > 0 ? (1 - Math.max(0, frequency - peakPoint) / Math.max(1, maxFrequency - peakPoint))
+			 * ((controls.acceleration ?? 2.5) * hill): (controls.deceleration ?? 3) / hill) * throttle;
 
-			frequency += deltaTime / 1000 * (accelleration * currentTrain.speed_per_motor_hz);
+			frequency += deltaTime / 1000 * (acceleration * currentTrain.speed_per_motor_hz);
 
 			frequency = Math.max(0, frequency);
 
@@ -771,11 +772,13 @@
 			 * (controls.max_power ?? 1);
 
 			if (Math.abs(frequency) < 0.2) power = 0;
-
+			
 			commandVF(frequency, power, deltaTime);
 			setSoundOptions({
 				volume: Number(volumeSlider.value)
 			});
+
+			renderVisualisations();
 
 			const {
 				currentSpeed,
@@ -786,16 +789,20 @@
 				pulsingMode,
 			} = getVFData();
 
+			const {
+				pulsingFrequency,
+				sineFrequency,
+				PWMfreqTime
+			} = getSoundData();
+
 			// Update info text
 			frequencyElement.textContent = currentFrequency.toFixed(2);
 			speedElement.textContent = currentSpeed.toFixed(2);
-			carrierFrequencyElement.textContent = Math.round(carrierFrequency);
+			pulsingFrequencyElement.textContent = Math.round(pulsingFrequency);
 			powerElement.textContent = Math.floor(currentPower * 100);
 			pulsesElement.textContent = pulses;
 			methodText.textContent = pulsingMode;
 			volumeVal.textContent = Math.floor(volumeSlider.value * 100);
-
-			renderVisualisations();
 
 			requestAnimationFrame(loop);
 		};

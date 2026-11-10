@@ -1,4 +1,4 @@
-import { setBulkParameters, pulse, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod,
+import { setBulkParameters, pulse, sineFreq, pulsingPower, PWMfreq, pulsePattern, PWMfreqTime, pulsingMethod,
     high1, low1, high2, low2, high3, low3, highMask, lowMask, fullMask, 
 	setFrequency,
 	setPower} from "./pulsing.js";
@@ -22,8 +22,8 @@ let PWMIndex = 0;
 let sineProgress = 0;
 let interpolationProgress = 0;
 
-const powerIncrementFactor = 0.1;
-const distortionFactor = 0;
+let powerIncrementFactor = 0.1;
+let distortionFactor = 0;
 
 let microsecPerSamples;
 let sampleRate;
@@ -42,6 +42,7 @@ class NoiseGenerator3Phase extends AudioWorkletProcessor {
 		soundOptions = options.processorOptions;
 		sampleRate = options.processorOptions.sampleRate;
 		microsecPerSamples = 1000 / (sampleRate / 1000)
+		console.log(microsecPerSamples)
 		console.log(sampleRate + "Hz")
 		console.log(soundOptions)
 
@@ -55,6 +56,8 @@ class NoiseGenerator3Phase extends AudioWorkletProcessor {
 			}
 
 			setBulkParameters(event.data);
+
+			if (event.data.distortion_factor != null) distortionFactor = event.data.distortion_factor;
 			
 			oscillationFrequency = event.data.oscillation_frequency;
 			targetFrequency = event.data.frequency;
@@ -79,7 +82,7 @@ class NoiseGenerator3Phase extends AudioWorkletProcessor {
 		idx = Math.floor(noOfSamples * sineProgress);
 
 		for (let i = 0; i < len; ++i) {
-			const registers = pulse((i + idx) * microsecPerSamples, (i + PWMIndex) * microsecPerSamples);
+			const registers = pulse((i + idx) * microsecPerSamples, (PWMIndex + i) * microsecPerSamples);
 			const high = popCount(registers & highMask);
 			const low = popCount(registers & lowMask);
 			let current = high + low;
@@ -90,14 +93,12 @@ class NoiseGenerator3Phase extends AudioWorkletProcessor {
 		}
 		PWMIndex += len;
 		
-		if (oscillationFrequency != null) {
-			PWMIndex %= 1000000 / oscillationFrequency / microsecPerSamples;
-		} else {			
-			PWMIndex %= 1000000 / PWMfreq / microsecPerSamples;
-		}
+		PWMIndex %= 2 ** 32; 
 
 		sineProgress += len / noOfSamples;
 		sineProgress %= 1;
+
+		this.port.postMessage({ PWMfreq, microsecPerSamples, pulsingMethod, PWMfreqTime, sineFreq, pulsePattern })
 
 		return true;
 	}
@@ -153,14 +154,12 @@ class NoiseGeneratorSinglePhase extends AudioWorkletProcessor {
 		}
 		PWMIndex += len;
 		
-		if (oscillationFrequency != null) {
-			PWMIndex %= 1000000 / oscillationFrequency / microsecPerSamples;
-		} else {			
-			PWMIndex %= 1000000 / PWMfreq / microsecPerSamples;
-		}
+		PWMIndex %= 2 ** 32; 
 
 		sineProgress += len / noOfSamples;
 		sineProgress %= 1;
+
+		this.port.postMessage({ PWMfreq, microsecPerSamples, pulsingMethod, sineFreq, PWMfreqTime, pulsePattern })
 
 		return true;
 	}

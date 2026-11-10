@@ -1,4 +1,4 @@
-export { setSoundOptions, startSound, stopSound };
+export { setSoundOptions, startSound, stopSound, getSoundData };
 
 let soundStarted = false;
 
@@ -27,6 +27,22 @@ function setSoundOptions(newOptions) {
 	}
 }
 
+let soundData = {};
+
+/**
+ * @returns {Object}
+ */
+function getSoundData() {
+	let pulsingFrequency = soundData.PWMfreq ?? 0;
+	if (soundData.pulsingMethod != "ASYNC") pulsingFrequency = soundData.pulsePattern * 2 * soundData.sineFreq;
+	return {
+		pulsingFrequency,
+		mode: soundData.pulsePattern ?? "OFF",
+		sineFrequency: soundData.sineFreq,
+		PWMfreqTime: soundData.PWMfreqTime,
+	}
+}
+
 async function startSound() {
 	return new Promise((res, rej) => {
 		if (soundStarted) stopSound();
@@ -51,6 +67,10 @@ async function startSound() {
 					.connect(gainNode)
 					.connect(audioCtx.destination);
 				
+				noiseNode.port.onmessage = ({ data }) => {
+					soundData = data;
+				};
+
 				res((data, deltaTime) => {
 					data.deltaTime = deltaTime;
 					noiseNode.port.postMessage(data);
