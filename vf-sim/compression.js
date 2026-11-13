@@ -31,8 +31,8 @@ const keys = {
 };
 
 const controlsKeys = {
-	"a": "accelleration",
-	"b": "decelleration",
+	"a": "acceleration",
+	"b": "deceleration",
 	"c": "min_power",
 	"d": "max_power",
 	"e": "accelleration_notches",

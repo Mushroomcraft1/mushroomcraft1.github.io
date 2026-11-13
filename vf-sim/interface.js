@@ -10,7 +10,8 @@ const pulsingModes = [
 	"ASYNC-STEP",
 	"ASYNC-OSCILLATING",
 	"ASYNC-SWEEP",
-	"MUSIC"
+	"ASYNC-MUSIC",
+	"PWM"
 ]
 
 const oscillationModes = [
@@ -29,8 +30,12 @@ let soundUpdateFunction;
 let prevTime = 0;
 
 let trainLoadID = 0;
-let prevTrainLoadID = 0;
-let prevPulsingIdx = 0;
+let prevTrainLoadID = -1;
+let prevPulsingIdx = -2;
+
+let musicStartTime = 0;
+let musicNote = -1;
+let musicNoteEnds = -1;
 
 /**
  * @param {Object} JSON 
@@ -148,6 +153,7 @@ function setTrain(trainID) {
 				checkNull("pulses");
 				break;
 			}
+			case "PWM":
 			case "ASYNC":
 			{
 				checkNull("carrier_frequency");
@@ -168,13 +174,15 @@ function setTrain(trainID) {
 				checkNull("min_carrier_frequency", "max_carrier_frequency");
 				break;
 			}
+			case "ASYNC-MUSIC":
+			{
+				checkNull("frequencies", "beats", "tempo");
+				if (pulseConfig.frequencies.length != pulseConfig.beats.length) throw `Mismatched number of "beats" and "frequencies"`;
+				break;
+			}
 			case "AUTO-SYNC":
 			{		
 				checkNull("min_pulses", "max_pulses", "pulse_step", "max_switching_frequency")		
-				break;
-			}
-			case "MUSIC":
-			{
 				break;
 			}
 			default:
@@ -244,7 +252,7 @@ function setTrainSpeed(speed) {
 function commandVF(frequency, power, deltaTime) {
 	if (currentTrainConfig == null) throw "No train selected"
 
-	let data = { mode: "OFF", power: 0, frequency: 0 };
+	let data = { mode: "ASYNC", power: 0, frequency: 500 };
 	let idx = -1;
 
 	const absFrequency = Math.abs(frequency);
@@ -253,16 +261,19 @@ function commandVF(frequency, power, deltaTime) {
 		++idx;
 		const { min_motor_frequency, max_motor_frequency, oscillation_mode, oscillation_frequency,
 			pulses, mode, carrier_frequency, carrier_frequencies, min_carrier_frequency, 
-			max_carrier_frequency, min_pulses, max_pulses, pulse_step, max_switching_frequency } = pulsing;
+			max_carrier_frequency, min_pulses, max_pulses, pulse_step, max_switching_frequency,
+			frequencies, beats, tempo } = pulsing;
 
 		if (absFrequency >= min_motor_frequency && absFrequency < max_motor_frequency) {
 			data = { mode, power, frequency };
 			data.oscillation_function = null;
 			switch (mode) {
 				case "AUTO-SYNC":
-					{
-						let calculatedPulseCount = Math.floor(max_switching_frequency / (absFrequency * 2 * pulse_step)) * pulse_step;
-						if ((min_pulses & 1) && (pulse_step & 1) == 0) calculatedPulseCount -= 1;
+					{						
+						let offset = ((min_pulses & 1) && (pulse_step & 1) == 0) ? 1 : 0;
+						let calculatedPulseCount = Math.floor(max_switching_frequency / (absFrequency * pulse_step * 2) + offset)
+						 * pulse_step - offset;
+						if (absFrequency * calculatedPulseCount * 2 > max_switching_frequency) calculatedPulseCount -= pulse_step;
 						data.pulses = Math.max(min_pulses, Math.min(max_pulses, calculatedPulseCount));
 						data.mode = "SYNC";
 						break;
@@ -335,6 +346,28 @@ function commandVF(frequency, power, deltaTime) {
 						data.mode = "ASYNC";
 						break;
 					}
+				case "ASYNC-MUSIC":
+					{
+						const beat = Math.floor((performance.now() - musicStartTime) / 60000 * tempo);
+						let frequency = 0;
+
+						while (beat >= musicNoteEnds && musicNote < beats.length) {
+							musicNoteEnds += beats[++musicNote];
+						}
+
+						if (musicNote >= beats.length) {
+							musicNote = 0;
+							musicNoteEnds = beats[0];
+							musicStartTime = performance.now();
+						}
+
+						frequency = frequencies[musicNote];
+
+						data.carrier_frequency = frequency;
+						data.mode = "ASYNC";
+						break;
+					}
+				case "PWM":
 				case "ASYNC":
 					{
 						data.carrier_frequency = carrier_frequency;
@@ -354,6 +387,10 @@ function commandVF(frequency, power, deltaTime) {
 
 	if (prevTrainLoadID == trainLoadID && idx == prevPulsingIdx) {
 		data.oscillation_function = -1;
+	} else {
+		musicStartTime = performance.now();
+		musicNote = -1;
+		musicNoteEnds = -1;
 	}
 
 	setBulkParameters(data);

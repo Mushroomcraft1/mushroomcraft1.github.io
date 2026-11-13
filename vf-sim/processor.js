@@ -36,18 +36,24 @@ let oscillationFrequency;
 
 let soundOptions;
 
+let buffer = [];
+
+let recordOptions = {
+	recording: false
+};
+
 class NoiseGenerator3Phase extends AudioWorkletProcessor {
 	constructor(options) {
 		super();
 		soundOptions = options.processorOptions;
 		sampleRate = options.processorOptions.sampleRate;
-		microsecPerSamples = 1000 / (sampleRate / 1000)
-		console.log(microsecPerSamples)
-		console.log(sampleRate + "Hz")
-		console.log(soundOptions)
 
-		this.port.onmessage = ((event) => {
-			const d = event.data.deltaTime;
+		microsecPerSamples = 1000 / (sampleRate / 1000)
+
+		console.log(sampleRate + "Hz 3 Phase")
+
+		this.port.onmessage = (({ data }) => {
+			const d = data.deltaTime;
 			if (!isNaN(d) && d > 0 && soundOptions.useInterpolation) {
 				deltaTime = d * 1000;
 				prevFrequency = sineFreq;
@@ -55,19 +61,18 @@ class NoiseGenerator3Phase extends AudioWorkletProcessor {
 				interpolationProgress = 0;
 			}
 
-			setBulkParameters(event.data);
+			setBulkParameters(data);
 
-			if (event.data.distortion_factor != null) distortionFactor = event.data.distortion_factor;
+			if (data.distortion_factor != null) distortionFactor = data.distortion_factor;
 			
-			oscillationFrequency = event.data.oscillation_frequency;
-			targetFrequency = event.data.frequency;
-			targetPower = event.data.power;
+			oscillationFrequency = data.oscillation_frequency;
+			targetFrequency = data.frequency;
+			targetPower = data.power;
 		});
 	}
 
 	process(inputs, outputs, parameters) {
-		const output = outputs[0];
-		const nowBuffering = output[0];
+		const nowBuffering = outputs[0][0];
 		const len = nowBuffering.length;
 
 		if (soundOptions.useInterpolation && deltaTime > 0) {
@@ -81,16 +86,47 @@ class NoiseGenerator3Phase extends AudioWorkletProcessor {
 
 		idx = Math.floor(noOfSamples * sineProgress);
 
-		for (let i = 0; i < len; ++i) {
-			const registers = pulse((i + idx) * microsecPerSamples, (PWMIndex + i) * microsecPerSamples);
-			const high = popCount(registers & highMask);
-			const low = popCount(registers & lowMask);
-			let current = high + low;
+		if (soundOptions.debug && recordOptions.recording) {
+			const combined = new Float32Array(len);
+			const phase1 = new Float32Array(len);
+			const phase2 = new Float32Array(len);
+			const phase3 = new Float32Array(len);
 
-			if (high == 0 || low == 0) current = 0;
+			for (let i = 1; i < 5; ++i) if (buffer[i] == null) buffer[i] = [];
+			
+			for (let i = 0; i < len; ++i) {
+				const registers = pulse((i + idx) * microsecPerSamples, (PWMIndex + i) * microsecPerSamples);
+				const high = popCount(registers & highMask);
+				const low = popCount(registers & lowMask);
+				let current = high + low;
 
-			nowBuffering[i] = current * powerIncrementFactor;
+				if (high == 0 || low == 0) current = 0;
+
+				nowBuffering[i] = current * powerIncrementFactor;
+
+				combined[i] = current * powerIncrementFactor;
+				phase1[i] = registers & high1 ? 0.2 : registers & low1 ? -0.2 : 0;
+				phase2[i] = registers & high2 ? 0.2 : registers & low2 ? -0.2 : 0;
+				phase3[i] = registers & high3 ? 0.2 : registers & low3 ? -0.2 : 0;
+			}
+			
+			buffer[1].push(combined);
+			buffer[2].push(phase1);
+			buffer[3].push(phase2);
+			buffer[4].push(phase3);
+		} else {
+			for (let i = 0; i < len; ++i) {
+				const registers = pulse((i + idx) * microsecPerSamples, (PWMIndex + i) * microsecPerSamples);
+				const high = popCount(registers & highMask);
+				const low = popCount(registers & lowMask);
+				let current = high + low;
+
+				if (high == 0 || low == 0) current = 0;
+
+				nowBuffering[i] = current * powerIncrementFactor;
+			}
 		}
+
 		PWMIndex += len;
 		
 		PWMIndex %= 2 ** 32; 
@@ -99,6 +135,13 @@ class NoiseGenerator3Phase extends AudioWorkletProcessor {
 		sineProgress %= 1;
 
 		this.port.postMessage({ PWMfreq, microsecPerSamples, pulsingMethod, PWMfreqTime, sineFreq, pulsePattern })
+
+		if (recordOptions.recording) {
+			for (let i = 1; i < outputs.length; ++i) {
+				if (buffer[i] == null) buffer[i] = [];
+				buffer[i].push(outputs[i][0]);
+			}
+		}
 
 		return true;
 	}
@@ -110,11 +153,10 @@ class NoiseGeneratorSinglePhase extends AudioWorkletProcessor {
 		soundOptions = options.processorOptions;
 		sampleRate = options.processorOptions.sampleRate;
 		microsecPerSamples = 1000 / (sampleRate / 1000)
-		console.log(sampleRate + "Hz")
-		console.log(soundOptions)
+		console.log(sampleRate + "Hz Single Phase")
 
-		this.port.onmessage = ((event) => {
-			const d = event.data.deltaTime;
+		this.port.onmessage = (({ data }) => {
+			const d = data.deltaTime;
 			if (!isNaN(d) && d > 0 && soundOptions.useInterpolation) {
 				deltaTime = d * 1000;
 				prevFrequency = sineFreq;
@@ -122,11 +164,11 @@ class NoiseGeneratorSinglePhase extends AudioWorkletProcessor {
 				interpolationProgress = 0;
 			}
 
-			setBulkParameters(event.data);
+			setBulkParameters(data);
 			
-			oscillationFrequency = event.data.oscillation_frequency;
-			targetFrequency = event.data.frequency;
-			targetPower = event.data.power;
+			oscillationFrequency = data.oscillation_frequency;
+			targetFrequency = data.frequency;
+			targetPower = data.power;
 		});
 	}
 
@@ -181,6 +223,10 @@ class NoiseFilter extends AudioWorkletProcessor {
 		const nowBuffering = output[0];
 		const input = inputs[0][0];
 		const len = input.length;
+		
+		if (inputs.length > 1) {
+			for (let i = 1; i < inputs.length; ++i) outputs[i] = inputs[i];
+		}
 
 		for (let i = 0; i < len; ++i) {
 			sum += input[i];
@@ -206,6 +252,10 @@ class Distort extends AudioWorkletProcessor {
 		const input = inputs[0][0];
 		const len = input.length;
 
+		if (inputs.length > 1) {
+			for (let i = 1; i < inputs.length; ++i) outputs[i] = inputs[i];
+		}
+	
 		for (let i = 0; i < len; ++i) {
 			nowBuffering[i] = input[i] + Math.sin(sineStage * Math.PI * 2) * distortionFactor;
 			sineStage += sineFreq / (2 * sampleRate);
@@ -214,7 +264,44 @@ class Distort extends AudioWorkletProcessor {
 	}
 }
 
+class Record extends AudioWorkletProcessor {
+	constructor() {
+		super();
+		
+
+		this.port.onmessage = (({ data }) => {
+			recordOptions.recording = data.record ?? false;
+			if (buffer[0] == null) buffer[0] = [];
+
+			if (data.saveRecording) {
+				this.port.postMessage(buffer);
+
+				buffer = [];
+			}
+		});
+	}
+
+	process(inputs, outputs, parameters) {
+		const nowBuffering = outputs[0][0];
+		const input = inputs[0][0];
+		const len = input.length;
+	
+		for (let i = 0; i < len; ++i) {
+			nowBuffering[i] = input[i];
+		}
+		
+		if (recordOptions.recording) {
+			const copy = new Float32Array(len);
+			for (let i = 0; i < len; ++i) {
+				copy[i] = input[i];
+			}
+			buffer[0].push(copy);
+		}
+	}
+}
+
 registerProcessor("vf-generator", NoiseGenerator3Phase);
 registerProcessor("vf-generator-single-phase", NoiseGeneratorSinglePhase);
 registerProcessor("vf-filter", NoiseFilter);
 registerProcessor("vf-distort", Distort);
+registerProcessor("vf-record", Record);

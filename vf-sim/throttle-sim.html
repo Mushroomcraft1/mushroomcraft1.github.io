@@ -112,6 +112,8 @@
 				<option value="48T">48kHz 3 Phase</option>
 				<option value="96T">96kHz 3 Phase</option>
 			</select></div>
+			<button id="start-recording">Start Recording</button>
+			<button id="stop-recording">Stop Recording</button>
 			<div><input type="range" min="0" max="1.5" step="0.05" id="volume"></input>Volume:  <span id="volume-val"></span> %</div>
 		</div>
 		<div class="info right">
@@ -145,7 +147,7 @@
 		import { setupDatabase, setTrain, setTrainSpeed, setSoundUpdateFunction, commandVF, getVFData, getTrainData, getAvailableTrains,
 			pulsingModes, oscillationModes
 		} from "./interface.js";
-		import { setSoundOptions, startSound, stopSound, getSoundData } from "./sound.js";
+		import { setSoundOptions, startSound, stopSound, getSoundData, startRecording, stopRecording, setRecordingSavedCallback } from "./sound.js";
 		import { setCanvas, setRenderOptions, renderVisualisations } from "./render.js";
 
 		let currentTrain = { controls: {} };
@@ -687,6 +689,15 @@
 		const volumeSlider = document.getElementById("volume");
 		const volumeVal = document.getElementById("volume-val")
 
+		const startRecordingButton = document.getElementById("start-recording");
+		const stopRecordingButton = document.getElementById("stop-recording");
+
+		startRecordingButton.addEventListener("click", startRecording);
+		stopRecordingButton.addEventListener("click", stopRecording);
+		setRecordingSavedCallback((url) => {
+			open(url);
+		});
+
 		audioOptionsValue.value = "48T";
 
 		audioOptionsValue.addEventListener("change", () => {
@@ -719,7 +730,7 @@
 						textContent: train
 					}));
 				}
-				loadTrain.value = "test";
+				loadTrain.value = "static";
 				loadTrain.dispatchEvent(new Event("change"));
 				loadTrainToSim();
 				loop();
@@ -791,7 +802,8 @@
 			const {
 				pulsingFrequency,
 				sineFrequency,
-				PWMfreqTime
+				PWMfreqTime,
+				soundOptions
 			} = getSoundData();
 
 			// Update info text
@@ -802,6 +814,9 @@
 			pulsesElement.textContent = pulses;
 			methodText.textContent = pulsingMode;
 			volumeVal.textContent = Math.floor(volumeSlider.value * 100);
+
+			startRecordingButton.hidden = soundOptions.recording;
+			stopRecordingButton.hidden = !soundOptions.recording;
 
 			requestAnimationFrame(loop);
 		};

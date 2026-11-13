@@ -12,3 +12,7 @@ This project simulates the different pulsing patterns in VF (variable frequency)
 * [trains.json](./trains.json) - JavaScript Object Notation database of our pre-made train configurations 
 * [throttle-sim.html](./throttle-sim.html) - User friendly example to make and test out pulsing patterns of trains
 * [throttle-sim-og.html](./throttle-sim-og.html) - Old version of the interface to make and test out pulsing patterns that includes functionality to generate C code for a train configuration to run on an arduino controlling VF hardware
+
+
+Credits:
+[@Daninet](https://github.com/Daninet) For [audioBufferToWav()](https://gist.github.com/Daninet/22edc59cf2aee0b9a90c18e553e49297)

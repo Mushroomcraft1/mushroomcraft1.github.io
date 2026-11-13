@@ -15,6 +15,7 @@ let renderOptions = {
 	phase1Colour: "#ff0000",
 	phase2Colour: "#ffff00",
 	phase3Colour: "#0000ff",
+	clearCanvas: true,
 	sampleRate: 10000,
 	samplesPerPixel: 1,
 	maxPixels: 1920,
@@ -44,10 +45,12 @@ function setRenderOptions(newOptions) {
 function renderVisualisations() {
 	const canvasWidth = visulisationCanvas.clientWidth;
 	const canvasHeight = visulisationCanvas.clientHeight;
-	visulisationCanvas.width = canvasWidth;
-	visulisationCanvas.height = canvasHeight;
 
-	visulisationCanvasCtx.clearRect(0, 0, visulisationCanvas.width, visulisationCanvas.height);
+	if (renderOptions.clearCanvas) {
+		visulisationCanvas.width = canvasWidth;
+		visulisationCanvas.height = canvasHeight;
+		visulisationCanvasCtx.clearRect(0, 0, visulisationCanvas.width, visulisationCanvas.height);
+	}
 
 	const noOfSamples = Math.min(canvasWidth, renderOptions.maxPixels) * renderOptions.samplesPerPixel;
 	const increment = 1 / renderOptions.samplesPerPixel;
