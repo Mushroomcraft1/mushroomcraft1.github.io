@@ -1,18 +1,6 @@
 export { setupDatabase, setTrain, commandVF, setTrainSpeed, setSoundUpdateFunction, getVFData, getTrainData, getAvailableTrains,
-	pulsingModes, oscillationModes };
+	pulsingModes, oscillationModes, JSONSchema, dataTypes };
 import { setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod, setPower, setFrequency } from "./pulsing.js";
-
-const pulsingModes = [
-	"SYNC",
-	"AUTO-SYNC",
-	"SHE-PWM",
-	"ASYNC",
-	"ASYNC-STEP",
-	"ASYNC-OSCILLATING",
-	"ASYNC-SWEEP",
-	"ASYNC-MUSIC",
-	"PWM"
-]
 
 const oscillationModes = [
 	"TRIANGLE",
@@ -21,7 +9,263 @@ const oscillationModes = [
 	"SINE",
 	"SQUARE",
 	"RANDOM"
-]
+];
+
+const JSONSchema = {
+	"wheel_diameter": {
+		"text": "Wheel Diameter",
+		"type": "LENGTH",
+		"min": 0.1,
+		"max": 2,
+		"increment": 0.001,
+		"default":  0.84
+	},
+	"gear_ratio_motor_side": {
+		"text": "Gear Ratio Motor side",
+		"type": "FLOAT",
+		"min": 0.1,
+		"max": 100,
+		"increment": 0.01,
+		"default": 6
+	},
+	"gear_ratio_wheel_side": {
+		"text": "Gear Ratio Wheel side",
+		"type": "FLOAT",
+		"min": 0.1,
+		"max": 250,
+		"increment": 0.01,
+		"default": 1
+	},
+	"speed_per_motor_hz": {
+		"text": "Speed per Motor Hz",
+		"type": "CONSTANT-FREQUENCY",
+		"min": 0.1,
+		"max": 5,
+	},
+	"motor_poles": {
+		"text": "Motor Poles",
+		"type": "INTEGER",
+		"min": 2,
+		"max": 16,
+		"increment": 2,
+		"default": 4
+	},
+	"controls": {
+		"acceleration": {
+			"text": "Acceleration",
+			"type": "ACCELERATION",
+			"min": 0.1,
+			"max": 20,
+			"increment": 0.1,
+			"default": 5
+		},
+		"deceleration": {
+			"text": "Deceleration",
+			"type": "ACCELERATION",
+			"min": 0.1,
+			"max": 20,
+			"increment": 0.1 ,
+			"default": 6
+		}
+	},
+	"pulsing": {
+		"type": "OBJECT-ARRAY",
+		"all": {
+			"mode": {
+				"text": "Mode",
+				"type": "KEY"
+			},
+			"min_speed": {
+				"text": "Start Speed",
+				"type": "SPEED",
+				"min": 0,
+				"increment": 0.1,
+			},
+			"min_motor_frequency": {
+				"text": "Start Motor Frequency",
+				"type": "CONSTANT-FREQUENCY",
+				"min": 0,
+				"increment": 0.1,
+			}
+		},
+		"objects": {
+			"SYNC": {
+				"text": "",
+				"pulses": {
+					"text": "Pulses",
+					"type": "INTEGER",
+					"min": 1,
+					"default": 5
+				}
+			},
+			"AUTO-SYNC": {
+				"min_pulses": {
+					"text": "Minimum Pulses",
+					"type": "INTEGER",
+					"min": 1,
+				},
+				"max_pulses": {
+					"text": "Maximum Pulses",
+					"type": "INTEGER",
+					"min": 1,
+					"default": 25
+				},
+				"pulse_step": {
+					"text": "Pulse Step",
+					"type": "INTEGER",
+					"min": 1
+				},
+				"max_switching_frequency": {
+					"text": "Maximum Switching Frequency",
+					"type": "ANY-FREQUENCY",
+					"min": 50,
+					"default": 500
+				}
+			},
+			"SHE-PWM": {
+				"pulses": {
+					"text": "Pulses",
+					"type": "INTEGER",
+					"min": 1,
+					"max": 17,
+					"step": 2,
+					"default": 5
+				}
+			},
+			"ASYNC": {
+				"carrier_frequency": {
+					"text": "Carrier Frequency",
+					"type": "ANY-FREQUNCY",
+					"default": 500
+				}
+			},
+			"ASYNC-STEP": {
+				"carrier_frequencies": {
+					"text": "Carrier Frequencies",
+					"type": "FREQUENCY-ARRAY"
+				}
+			},
+			"ASYNC-OSCILLATING": {
+				"min_carrier_frequency": {
+					"text": "Minimum Carrier Frequency",
+					"type": "ANY-FREQUENCY",
+					"default": 500
+				},
+				"max_carrier_frequency": {
+					"text": "Maximum Carrier Frequency",
+					"type": "ANY-FREQUENCY",
+					"default": 600
+				},
+				"oscillation_frequency": {
+					"text": "Oscillation Frequency",
+					"type": "ANY-FREQUENCY",
+					"default": 5
+				},
+				"oscillation_mode": {
+					"text": "Oscillation Mode",
+					"type": "CONSTANT",
+					"values": oscillationModes
+				}
+			},
+			"ASYNC-SWEEP": {
+				"min_carrier_frequency": {
+					"text": "Start Carrier Frequency",
+					"type": "ANY-FREQUENCY",
+					"default": 500
+				},
+				"max_carrier_frequency": {
+					"text": "End Carrier Frequency",
+					"type": "ANY-FREQUENCY",
+					"default": 1000
+				},
+			},
+			"ASYNC-MUSIC": {
+				"tempo": {
+					"text": "Music Tempo",
+					"type": "FLOAT",
+					"min": 1,
+					"max": 60000,
+					"default": 120
+				},
+				"frequencies": {
+					"text": "Note Frequencies",
+					"type": "FREQUENCY-ARRAY",
+				},
+				"beats": {
+					"text": "Note Durations (beats)",
+					"type": "FLOAT-ARRAY"
+				}
+			},
+			"PWM": {
+				"carrier_frequency": {
+					"type": "ANY-FREQUENCY",
+					"default": 500
+				}
+			}
+		}
+	}
+};
+
+const dataTypes = {
+	"FLOAT": {
+		"unit": "",
+		"description": "Any non-negative number",
+		"min": 0,
+		"max": 9999,
+		"step": 0.01
+	},
+	"INTEGER": {
+		"unit": "",
+		"description": "Any positive integer",
+		"min": 0,
+		"max": 9999,
+		"step": 1
+	},
+	"LENGTH": {
+		"unit": "m",
+		"description": "Any size/length in metres",
+		"min": 0,
+		"max": 9999,
+		"step": 0.001
+	},
+	"SPEED": {
+		"unit": "km/h",
+		"description": "Any speed in kilometres per hour",
+		"min": 0,
+		"max": 999,
+		"step": 0.1
+	},
+	"ACCELERATION": {
+		"unit": "km/h/s",
+		"description": "Any acceleration in kilometres per hour per second",
+		"min": 0,
+		"max": 99,
+		"step": 0.1
+	},
+	"CONSTANT-FREQUENCY": {
+		"unit": "hz",
+		"description": "A constant frequency in hertz",
+		"min": 0,
+		"max": 12000,
+		"step": 0.1
+	},
+	"ANY-FREQUENCY": {
+		"unit": "hz",
+		"description": "A constant frequency or 2 frequencies to interpolate between",
+		"min": 0,
+		"max": 12000,
+		"step": 0.1
+	},
+	"FREQUENCY-ARRAY": {
+		"unit": "hz",
+		"description": "A list of frequencies separated by commas"
+	},
+	"FLOAT-ARRAY": {
+		"description": "A list of numbers separated by commas"
+	}
+};
+
+const pulsingModes = Object.keys(JSONSchema.pulsing.objects);
 
 let trainDB = new Map();
 
@@ -91,7 +335,7 @@ function setSoundUpdateFunction(funct) {
  */
 function setTrain(trainID) {
 	if (typeof trainID == "string") {
-		currentTrainConfig = trainDB.get(trainID.toLowerCase());
+		currentTrainConfig = trainDB.get(trainID);
 	} else {
 		currentTrainConfig = trainID;
 	}
@@ -348,24 +592,28 @@ function commandVF(frequency, power, deltaTime) {
 					}
 				case "ASYNC-MUSIC":
 					{
-						const beat = Math.floor((performance.now() - musicStartTime) / 60000 * tempo);
-						let frequency = 0;
+						if (power == 0) {
+							musicStartTime += deltaTime;
+						} else {
+							const beat = (performance.now() - musicStartTime) / 60000 * tempo;
+							let frequency = 0;
 
-						while (beat >= musicNoteEnds && musicNote < beats.length) {
-							musicNoteEnds += beats[++musicNote];
+							while (beat >= musicNoteEnds && musicNote < beats.length) {
+								musicNoteEnds += beats[++musicNote];
+							}
+
+							if (musicNote >= beats.length) {
+								musicNote = 0;
+								musicNoteEnds = beats[0];
+								musicStartTime = performance.now();
+							}
+
+							frequency = frequencies[musicNote];
+
+							data.carrier_frequency = frequency;
+							data.mode = "ASYNC";
+							break;
 						}
-
-						if (musicNote >= beats.length) {
-							musicNote = 0;
-							musicNoteEnds = beats[0];
-							musicStartTime = performance.now();
-						}
-
-						frequency = frequencies[musicNote];
-
-						data.carrier_frequency = frequency;
-						data.mode = "ASYNC";
-						break;
 					}
 				case "PWM":
 				case "ASYNC":
