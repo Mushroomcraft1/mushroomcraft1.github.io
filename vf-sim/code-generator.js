@@ -2,6 +2,7 @@ export { generateCode };
 import { getTrainData } from "./interface.js";
 
 function generateCode() {
+	let code = `// Unfinished, does not have latest features\n`;
 	let frequencies = ``;
 	let ifStatements = ``;
 	const parsedTrain = getTrainData();
@@ -93,7 +94,7 @@ function generateCode() {
 			ifStatements += `}\n`;
 		}
 	}
-	let code = `${frequencies}sineFreq += throttle;\nfloat absSineFreq = abs(sineFreq);\npower = max(0.3f, min(1.0f, absSineFreq / 50.0f));\n\n`
+	code += `${frequencies}sineFreq += throttle;\nfloat absSineFreq = abs(sineFreq);\npower = max(0.3f, min(1.0f, absSineFreq / 50.0f));\n\n`
 	+ `${ifStatements}\n\nsineFreqTime = 1000000.0f / min(50, absSineFreq);\nsineFreqTimeInt = (unsigned long)sineFreqTime;\n`
 	+ `PWMfreqTime = 1000000.0f / PWMfreq;\nPWMfreqTimeInt = (unsigned long)PWMfreqTime;`;
 	return code;

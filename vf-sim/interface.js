@@ -1,4 +1,4 @@
-export { setupDatabase, setTrain, commandVF, setTrainSpeed, setSoundUpdateFunction, getVFData, getTrainData, getAvailableTrains,
+export { setupDatabase, clearDatabase, setTrain, commandVF, setTrainSpeed, setSoundUpdateFunction, getVFData, getTrainData, getAvailableTrains,
 	pulsingModes, oscillationModes, JSONSchema, dataTypes };
 import { setBulkParameters, sineFreq, pulsingPower, PWMfreq, pulsePattern, pulsingMethod, setPower, setFrequency } from "./pulsing.js";
 
@@ -18,7 +18,8 @@ const JSONSchema = {
 		"min": 0.1,
 		"max": 2,
 		"increment": 0.001,
-		"default":  0.84
+		"default":  0.84,
+		"group": "B"
 	},
 	"gear_ratio_motor_side": {
 		"text": "Gear Ratio Motor side",
@@ -26,7 +27,8 @@ const JSONSchema = {
 		"min": 0.1,
 		"max": 100,
 		"increment": 0.01,
-		"default": 6
+		"default": 6,
+		"group": "B"
 	},
 	"gear_ratio_wheel_side": {
 		"text": "Gear Ratio Wheel side",
@@ -34,13 +36,15 @@ const JSONSchema = {
 		"min": 0.1,
 		"max": 250,
 		"increment": 0.01,
-		"default": 1
+		"default": 1,
+		"group": "B"
 	},
 	"speed_per_motor_hz": {
 		"text": "Speed per Motor Hz",
 		"type": "CONSTANT-FREQUENCY",
 		"min": 0.1,
 		"max": 5,
+		"group": "A"
 	},
 	"motor_poles": {
 		"text": "Motor Poles",
@@ -48,9 +52,11 @@ const JSONSchema = {
 		"min": 2,
 		"max": 16,
 		"increment": 2,
-		"default": 4
+		"default": 4,
+		"group": "B"
 	},
 	"controls": {
+		"text": "Controls",
 		"acceleration": {
 			"text": "Acceleration",
 			"type": "ACCELERATION",
@@ -69,6 +75,7 @@ const JSONSchema = {
 		}
 	},
 	"pulsing": {
+		"text": "Pulsing",
 		"type": "OBJECT-ARRAY",
 		"all": {
 			"mode": {
@@ -80,17 +87,18 @@ const JSONSchema = {
 				"type": "SPEED",
 				"min": 0,
 				"increment": 0.1,
+				"group": "B"
 			},
 			"min_motor_frequency": {
 				"text": "Start Motor Frequency",
 				"type": "CONSTANT-FREQUENCY",
 				"min": 0,
 				"increment": 0.1,
+				"group": "A"
 			}
 		},
 		"objects": {
 			"SYNC": {
-				"text": "",
 				"pulses": {
 					"text": "Pulses",
 					"type": "INTEGER",
@@ -135,7 +143,7 @@ const JSONSchema = {
 			"ASYNC": {
 				"carrier_frequency": {
 					"text": "Carrier Frequency",
-					"type": "ANY-FREQUNCY",
+					"type": "ANY-FREQUENCY",
 					"default": 500
 				}
 			},
@@ -320,6 +328,10 @@ async function setupDatabase(trainConfigSource) {
 	});
 }
 
+function clearDatabase() {
+	trainDB.clear();
+}
+
 /**
  * @param {Function} funct - Sound update function recieved from startSound call
  */
@@ -488,6 +500,21 @@ function setTrainSpeed(speed) {
 	prevTime = time;
 }
 
+function getValue(value, min_motor_frequency, max_motor_frequency, frequency) {
+	if (typeof value == "number") return value;
+	if (value == null) return 0;
+	return (frequency - min_motor_frequency)
+	 / (max_motor_frequency - min_motor_frequency)
+	 * (value.end - value.start) + value.start;
+}
+
+function createEquation(value, min_motor_frequency, max_motor_frequency) {
+	if (typeof value == "number") return value;
+	return `((sineFreq - ${min_motor_frequency})
+	/ ${max_motor_frequency - min_motor_frequency}
+	* ${value.end - value.start} + ${value.start})`
+}
+
 /**
  * @param {Float} frequency - Frequency for VF to synthasise
  * @param {Float} power - Power level for the current pulsing mode 
@@ -513,11 +540,12 @@ function commandVF(frequency, power, deltaTime) {
 			data.oscillation_function = null;
 			switch (mode) {
 				case "AUTO-SYNC":
-					{						
+					{					
+						const value = getValue(max_switching_frequency, min_motor_frequency, max_motor_frequency, absFrequency);	
 						let offset = ((min_pulses & 1) && (pulse_step & 1) == 0) ? 1 : 0;
-						let calculatedPulseCount = Math.floor(max_switching_frequency / (absFrequency * pulse_step * 2) + offset)
+						let calculatedPulseCount = Math.floor(value / (absFrequency * pulse_step * 2) + offset)
 						 * pulse_step - offset;
-						if (absFrequency * calculatedPulseCount * 2 > max_switching_frequency) calculatedPulseCount -= pulse_step;
+						if (absFrequency * calculatedPulseCount * 2 > value) calculatedPulseCount -= pulse_step;
 						data.pulses = Math.max(min_pulses, Math.min(max_pulses, calculatedPulseCount));
 						data.mode = "SYNC";
 						break;
@@ -537,39 +565,51 @@ function commandVF(frequency, power, deltaTime) {
 						switch (oscillation_mode) {
 							case "TRIANGLE":
 								funct = `(microsec) => {
+									const min = ${createEquation(min_carrier_frequency, min_motor_frequency, max_motor_frequency)};
+									const max = ${createEquation(max_carrier_frequency, min_motor_frequency, max_motor_frequency)};
 									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
 									const factor = timeFactor >= 0.5 ? 2 - 2 * timeFactor : 2 * timeFactor;
-									return (${max_carrier_frequency - min_carrier_frequency}) * factor + ${min_carrier_frequency};
+									return (max - min) * factor + min;
 								}`
 								break
 							case "SAW-RISING":
 								funct = `(microsec) => {
+									const min = ${createEquation(min_carrier_frequency, min_motor_frequency, max_motor_frequency)};
+									const max = ${createEquation(max_carrier_frequency, min_motor_frequency, max_motor_frequency)};
 									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
-									return (${max_carrier_frequency - min_carrier_frequency}) * timeFactor + ${min_carrier_frequency};
+									return (max - min) * timeFactor + min;
 								}`
 								break
 							case "SAW-FALLING":
 								funct = `(microsec) => {
+									const min = ${createEquation(min_carrier_frequency, min_motor_frequency, max_motor_frequency)};
+									const max = ${createEquation(max_carrier_frequency, min_motor_frequency, max_motor_frequency)};
 									const timeFactor = 1 - ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
-									return (${max_carrier_frequency - min_carrier_frequency}) * timeFactor + ${min_carrier_frequency};
+									return (max - min) * timeFactor + min;
 								}`
 								break
 							case "SINE":
 								funct = `(microsec) => {
+									const min = ${createEquation(min_carrier_frequency, min_motor_frequency, max_motor_frequency)};
+									const max = ${createEquation(max_carrier_frequency, min_motor_frequency, max_motor_frequency)};
 									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
 									const factor = Math.sin(timeFactor * Math.PI * 2) / 2 + 0.5;
-									return (${max_carrier_frequency - min_carrier_frequency}) * factor + ${min_carrier_frequency};
+									return (max - min) * factor + min;
 								}`
 								break
 							case "SQUARE":
 								funct = `(microsec) => {
+									const min = ${createEquation(min_carrier_frequency, min_motor_frequency, max_motor_frequency)};
+									const max = ${createEquation(max_carrier_frequency, min_motor_frequency, max_motor_frequency)};
 									const timeFactor = ((microsec / 1_000_000) % ${1 / oscillation_frequency}) * ${oscillation_frequency};
-									return timeFactor <= 0.5 ? ${min_carrier_frequency} : ${max_carrier_frequency};
+									return timeFactor <= 0.5 ? min : max;
 								}`
 								break
 							case "RANDOM":
 								funct = `(microsec) => {
-									return ${min_carrier_frequency} + Math.random() * ${max_carrier_frequency - min_carrier_frequency};
+									const min = ${createEquation(min_carrier_frequency, min_motor_frequency, max_motor_frequency)};
+									const max = ${createEquation(max_carrier_frequency, min_motor_frequency, max_motor_frequency)};
+									return min + Math.random() * (max - min);
 								}`
 								break
 						}
@@ -581,11 +621,7 @@ function commandVF(frequency, power, deltaTime) {
 				case "ASYNC-SWEEP":
 					{
 						data.oscillation_function = `(microsec) => {
-							let calculatedCarrierFrequency = (sineFreq - ${min_motor_frequency})
-							/ (${max_motor_frequency - min_motor_frequency})
-							* (${max_carrier_frequency - min_carrier_frequency})
-							+ ${min_carrier_frequency}; 
-							return calculatedCarrierFrequency;
+							return ${createEquation({ start: min_carrier_frequency, end: max_carrier_frequency }, min_motor_frequency, max_motor_frequency)};
 						}`
 						data.mode = "ASYNC";
 						break;
@@ -597,6 +633,12 @@ function commandVF(frequency, power, deltaTime) {
 						} else {
 							const beat = (performance.now() - musicStartTime) / 60000 * tempo;
 							let frequency = 0;
+
+							if (musicNote < 0 || musicNoteEnds < 0) {
+								musicNote = 0;
+								musicNoteEnds = beats[0];
+								musicStartTime = performance.now();
+							}
 
 							while (beat >= musicNoteEnds && musicNote < beats.length) {
 								musicNoteEnds += beats[++musicNote];
@@ -618,7 +660,7 @@ function commandVF(frequency, power, deltaTime) {
 				case "PWM":
 				case "ASYNC":
 					{
-						data.carrier_frequency = carrier_frequency;
+						data.carrier_frequency = getValue(carrier_frequency, min_motor_frequency, max_motor_frequency, absFrequency);
 						break;
 					}
 				case "SYNC":
@@ -636,7 +678,6 @@ function commandVF(frequency, power, deltaTime) {
 	if (prevTrainLoadID == trainLoadID && idx == prevPulsingIdx) {
 		data.oscillation_function = -1;
 	} else {
-		musicStartTime = performance.now();
 		musicNote = -1;
 		musicNoteEnds = -1;
 	}
@@ -658,6 +699,7 @@ function getVFData() {
 		carrierFrequency: PWMfreq,
 		pulses: pulsePattern,
 		pulsingMode: pulsingMethod,
+		currentPulsingIdx: prevPulsingIdx,
 		speedPerMotorHz: currentTrainConfig.speed_per_motor_hz
 	};
 }

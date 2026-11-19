@@ -35,7 +35,7 @@ let soundData = {};
  */
 function getSoundData() {
 	let pulsingFrequency = soundData.PWMfreq ?? 0;
-	if (soundData.pulsingMethod == "SYNC") pulsingFrequency = soundData.pulsePattern * 2 * soundData.sineFreq;
+	if (soundData.pulsingMethod == "SYNC" || soundData.pulsingMethod == "SHE-PWM") pulsingFrequency = soundData.pulsePattern * 2 * soundData.sineFreq;
 	return {
 		pulsingFrequency,
 		mode: soundData.pulsePattern ?? "OFF",
