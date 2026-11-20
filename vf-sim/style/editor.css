@@ -137,6 +137,16 @@ button:hover {
 	backdrop-filter: blur(0.2em);
 }
 
+#controls {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+	border-top-left-radius: 1em;
+	background-color: var(--background2);
+	padding: 1em;
+	backdrop-filter: blur(0.2em);
+}
+
 #editor {
 	border-bottom-right-radius: 1em;
 }
@@ -304,7 +314,7 @@ h2 {
 
 #notifications {
     position: fixed;
-    bottom: 0;
+    top: 4em;
     right: 0;
     z-index: 199;
     user-select: none;

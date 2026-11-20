@@ -1,0 +1,116 @@
+:root {
+    --code-font-size: 1em;
+}
+
+.hljs-keyword,
+.hljs-title,
+.hljs-literal,
+.hljs-section,
+.hljs-selector-tag {
+    color: #569CD6
+}
+
+.hljs-addition,
+.hljs-attr,
+.hljs-bullet,
+.hljs-name,
+.hljs-string,
+.hljs-symbol,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-property,
+.hljs-variable {
+    color: #9CDCFE
+}
+
+.function_,
+.hljs-built_in {
+    color: #DCDCAA !important;
+}
+
+.class_ {
+    color: #4EC9B0;
+}
+
+.hljs-comment,
+.hljs-deletion,
+.hljs-meta,
+.hljs-quote {
+    color: #6A9955
+}
+
+.hljs-number {
+    color: #B5CEA4;
+}
+
+.hljs-string {
+    color: #CE9178;
+}
+
+.hljs-link {
+    color: #D7BA7D;
+}
+
+.hljs-doctag,
+.hljs-keyword,
+.hljs-literal,
+.hljs-name,
+.hljs-section,
+.hljs-selector-tag,
+.hljs-strong,
+.hljs-title,
+.hljs-type {
+    /* font-weight: 700 */
+}
+
+.hljs-emphasis {
+    font-style: italic
+}
+
+#codebox-container {
+    display: grid;
+    position: relative;
+    width: calc(100% - 2em);
+    padding-inline: 1em;
+	height: calc(100vh - 16em);
+    top: 25px;
+    border: 2px solid var(--white);
+    border-radius: 1em;
+}
+
+pre {
+    position: relative;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    user-select: none;
+    pointer-events: none;
+    grid-row: 1;
+    grid-column: 1;
+}
+
+textarea {
+    font-size: var(--code-font-size);
+    color: #00000000;
+    background-color: #00000000;
+    caret-color: var(--light-grey);
+    position: relative;
+    top: 0;
+    left: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    width: 100%;
+    height: 100%;
+    resize: none;
+    grid-row: 1;
+    grid-column: 1;
+    overflow: scroll;
+    white-space: nowrap;
+}
+
+code {
+    font-size: var(--code-font-size);
+}
