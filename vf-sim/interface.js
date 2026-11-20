@@ -72,11 +72,40 @@ const JSONSchema = {
 			"max": 20,
 			"increment": 0.1 ,
 			"default": 6
+		},
+		"max_speed": {
+			"text": "Maximum Speed",
+			"type": "SPEED",
+			"min": 10,
+			"increment": 0.1 ,
+			"default": 100
+		},
+		"peak_point": {
+			"text": "Peak Point",
+			"type": "SPEED",
+			"min": 0,
+			"increment": 0.1 ,
+			"default": 100
+		},
+		"min_power": {
+			"text": "Minimum Power",
+			"type": "PERCENTAGE",
+			"min": 0,
+			"increment": 0.01 ,
+			"default": 0.1
+		},
+		"max_power": {
+			"text": "Maximum Power",
+			"type": "PERCENTAGE",
+			"min": 0.1,
+			"increment": 0.01 ,
+			"default": 1
 		}
 	},
 	"pulsing": {
 		"text": "Pulsing",
 		"type": "OBJECT-ARRAY",
+		"ordered": true,
 		"all": {
 			"mode": {
 				"text": "Mode",
@@ -87,6 +116,7 @@ const JSONSchema = {
 				"type": "SPEED",
 				"min": 0,
 				"increment": 0.1,
+				"sort_key": "B",
 				"group": "B"
 			},
 			"min_motor_frequency": {
@@ -94,6 +124,7 @@ const JSONSchema = {
 				"type": "CONSTANT-FREQUENCY",
 				"min": 0,
 				"increment": 0.1,
+				"sort_key": "A",
 				"group": "A"
 			}
 		},
@@ -228,6 +259,13 @@ const dataTypes = {
 		"min": 0,
 		"max": 9999,
 		"step": 1
+	},
+	"PERCENTAGE": {
+		"unit": "%",
+		"description": "Any percentage",
+		"min": 0,
+		"max": 1.5,
+		"step": 0.01
 	},
 	"LENGTH": {
 		"unit": "m",
@@ -470,8 +508,9 @@ function setTrain(trainID) {
 
 /**
  * @param {Float} speed - Speed (km/h) at which to simulate the sound of the VF
+ * @param {Float} powerOverride - Power Override, if null, power is calculated
  */
-function setTrainSpeed(speed) {
+function setTrainSpeed(speed, powerOverride) {
 	const time = performance.now();
 	const deltaTime = Math.min(100, time - prevTime);
 
@@ -489,7 +528,7 @@ function setTrainSpeed(speed) {
 
 	const peakPoint = peak_point == null ? 50 : peak_point * speed_per_motor_hz;
 
-	let power = Math.max(controls?.min_power ?? 0.1,
+	let power = powerOverride ?? Math.max(controls?.min_power ?? 0.1,
 			   Math.min(1, frequency / peakPoint))
 			 * (controls?.max_power ?? 1);
 	

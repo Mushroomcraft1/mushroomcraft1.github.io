@@ -4,16 +4,21 @@
 		"gear_ratio_motor_side": 13,
 		"gear_ratio_wheel_side": 2,
 		"motor_poles": 4,
+		"controls": {
+			"max_speed": 100,
+			"peak_point": 30,
+			"min_power": 0.3
+		},
 		"pulsing": [
-			{
-				"min_motor_frequency": 0,
-				"mode": "ASYNC",
-				"carrier_frequency": 300
-			},
 			{
 				"min_motor_frequency": 14.4,
 				"mode": "SYNC",
 				"pulses": 21
+			},
+			{
+				"min_motor_frequency": 0,
+				"mode": "ASYNC",
+				"carrier_frequency": 300
 			},
 			{
 				"min_motor_frequency": 20,
@@ -53,10 +58,8 @@
 		"gear_ratio_motor_side": 5.13,
 		"gear_ratio_wheel_side": 1,
 		"controls": {
-			"accelleration": 2.7,
-			"decelleration": 4.3,
-			"acceleration": 2.5,
-			"deceleration": 3,
+			"acceleration": 2.7,
+			"deceleration": 4.3,
 			"max_speed": 225,
 			"peak_point": 210,
 			"rolling_resistance": 0.0015
@@ -95,7 +98,9 @@
 		"speed_per_motor_hz": 1.6189469954574645,
 		"controls": {
 			"acceleration": 4.6,
-			"deceleration": 5.6
+			"deceleration": 5.6,
+			"min_power": 0.2,
+			"peak_point": 30
 		},
 		"pulsing": [
 			{
@@ -188,10 +193,13 @@
 			}
 		]
 	},
-	"Class 700": {
+	"Class 700 (3rd Rail)": {
 		"wheel_diameter": 0.84,
 		"gear_ratio_motor_side": 6,
 		"gear_ratio_wheel_side": 1,
+		"controls": {
+			"max_speed": 160
+		},
 		"pulsing": [
 			{
 				"mode": "ASYNC-OSCILLATING",

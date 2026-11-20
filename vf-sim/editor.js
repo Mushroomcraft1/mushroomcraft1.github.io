@@ -11,6 +11,7 @@ const ctx = canvas.getContext("2d");
 const editor = document.getElementById("editor");
 const trainSelector = document.getElementById("train-select");
 const textInput = document.getElementById("text-input");
+const newTrainButton = document.getElementById("new-train");
 const selectTrainButton = document.getElementById("select-train");
 const vfInfo = document.getElementById("vf-info");
 const saveTrainButton = document.getElementById("save-train");
@@ -23,6 +24,7 @@ const loadLibraryButton = document.getElementById("load-library");
 const loadJSONButton = document.getElementById("load-json");
 const clearDatabaseButton = document.getElementById("clear-database");
 const editorActiveGroup = createElement("select")
+const controlMode = document.getElementById("control-mode");
 		
 editorActiveGroup.addEventListener("change", () => {
 	loadEditor(true);
@@ -41,9 +43,9 @@ const trainSpeed = createElement("span");
 const trainPower = createElement("span");
 
 vfInfo.append(
-	createInput("Motor Frequency: ", motorFrequency, " Hz "),
+	createInput("Motor Frequency: ", motorFrequency, " Hz"),
 	createInput("Switching Frequency: ", switchingFrequency, " Hz"), 
-	createInput("Speed: ", trainSpeed, " km/h "),
+	createInput("Speed: ", trainSpeed, " km/h"),
 	createInput("Power: ", trainPower, "%")
 );
 
@@ -59,10 +61,24 @@ renderer.setRenderOptions({
 	samplesPerPixel: 4
 });
 
-window.addEventListener("click", () => {
+function pointerDownStartSound() {
+	startSound();
+	window.removeEventListener("pointerdown", pointerDownStartSound);
 	document.getElementById("click-to-start-sound").remove();
-	setTimeout(startSound, 100);
-});
+}
+
+// Redundant listener that is more reliable for mobile
+function clickStartSound() {
+	setTimeout(() => {
+		startSound();
+		window.removeEventListener("click", clickStartSound);
+		document.getElementById("click-to-start-sound")?.remove();
+	}, 100);
+}
+
+window.addEventListener("pointerdown", pointerDownStartSound);
+
+window.addEventListener("click", clickStartSound);
 
 class Notif {
     #elm = null
@@ -133,7 +149,6 @@ function startSound() {
 	sound.startSound()
 		.then((soundUpdateFunction) => {
 			trainManager.setSoundUpdateFunction(soundUpdateFunction);
-			window.removeEventListener("click", startSound);
 		});
 }
 
@@ -155,6 +170,7 @@ function loadTrain(newTrain) {
 	let success = true;
 	try {
 		train = trainManager.setTrain(newTrain);
+		speed = 0;
 	} catch (err) {
 		success = false;
 		new Notif("Failed to load train " + err, "err")
@@ -220,6 +236,19 @@ function createEditorElement(key, schema, parent, trainValue) {
 				min: schema.min ?? dataType.min,
 				max: schema.max ?? dataType.max,
 				step: schema.step ?? dataType.step
+			});
+			input.addEventListener("input", updateTrainFromEditor);
+			element = createInput(name, input, dataType.unit, dataType.description); 
+			break;
+		}
+		case "PERCENTAGE":
+		{
+			let value = (trainValue ?? schema.default ?? schema.min ?? dataType.min ?? 0) * 100;
+			const input = createElement("input", { 
+				type: "number", value, "data-key": key, "data-type": "PERCENTAGE",
+				min: (schema.min ?? dataType.min) * 100,
+				max: (schema.max ?? dataType.max) * 100,
+				step: (schema.step ?? dataType.step) * 100
 			});
 			input.addEventListener("input", updateTrainFromEditor);
 			element = createInput(name, input, dataType.unit, dataType.description); 
@@ -334,8 +363,20 @@ function createEditorElement(key, schema, parent, trainValue) {
 			element = createElement("div", { 
 				innerText: name, "data-key": key, "data-type": "OBJECT-ARRAY"
 			}, ["editor-category"]);
+			let sortKey = {};
+			if (schema.ordered) {
+				for (const property in schema.all) {
+					const sortKeyGroup = schema.all[property]?.sort_key;
+					if (sortKeyGroup != null) sortKey[sortKeyGroup] = property;
+				}
+				trainValue.sort((a, b) => 
+					a[sortKey[editorActiveGroup.value]] - b[sortKey[editorActiveGroup.value]]
+				);
+			}
 			const values = Object.keys(schema.objects ?? {});
-			const list = createElement("ol")
+			const list = createElement("ol", { 
+				"data-sort-by": JSON.stringify(sortKey)
+			});
 			let idx = 0;
 
 			let keyProperty;
@@ -434,6 +475,7 @@ function findValue(element) {
 	let queue = [element];
 	while (queue.length > 0) {
 		const firstInQueue = queue.shift();
+		if (firstInQueue == null) return;
 		if (firstInQueue.value != null) return firstInQueue.value;
 		for (const child of firstInQueue.children) {
 			queue.push(child);
@@ -448,6 +490,35 @@ function findValue(element) {
  */
 function createObjectFromElements(element) {
 	let object = {};
+	if (element["data-sort-by"] != null) {
+		const sortKeys = JSON.parse(element["data-sort-by"]);
+		const sortKey = sortKeys[editorActiveGroup.value];
+		if (sortKey != null) {
+			const list = []
+			for (const child of element.children) {
+				list.push(child);
+			}
+
+			let changed = false;
+
+			list.sort((a, b) => {
+				let vals = [];
+				let idx = 0;
+				const allElms = [a.querySelectorAll("input"), b.querySelectorAll("input")];
+				for (const elms of allElms) {
+					for (const elm of elms) if (elm["data-key"] == sortKey) {
+						vals[idx] = parseFloat(findValue(elm));
+						break;
+					}
+					++idx;
+				}
+				if (vals[0] - vals[1] > 0) changed = true;
+				return vals[0] - vals[1];
+			});
+
+			if (changed) element.replaceChildren(...list);
+		}
+	}
 	for (const child of element.children) {
 		if (child.hidden) continue;
 		const key = child["data-key"];
@@ -466,6 +537,15 @@ function createObjectFromElements(element) {
 				let idx = 0;
 				for (const order of keys) {
 					object[key][idx++] = recursiveObject[order];
+				}
+				break;
+			}
+			case "PERCENTAGE":
+			{
+				const value = findValue(element);
+				if (value != null) {
+					const number = parseFloat(value);
+					if (!isNaN(number)) object[key] = number / 100; 
 				}
 				break;
 			}
@@ -638,6 +718,35 @@ function openTrainSelector() {
 
 selectTrainButton.addEventListener("click", openTrainSelector);
 
+newTrainButton.addEventListener("click", () => {
+	loadTrain({
+		"name": "New Train",
+		"wheel_diameter": 0.84,
+		"gear_ratio_motor_side": 6,
+		"gear_ratio_wheel_side": 1,
+		"controls": {
+			"max_speed": 160
+		},
+		"pulsing": [
+			{
+				"mode": "ASYNC",
+				"min_speed": 0,
+				"carrier_frequency": 1600
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 60,
+				"pulses": 9
+			},
+			{
+				"mode": "SYNC",
+				"min_speed": 100,
+				"pulses": 3
+			}
+		]
+	});
+});
+
 loadLibraryButton.addEventListener("click", () => {
 	const loadDatabases = createElement("button", {
 		textContent: "Load Databases"
@@ -771,16 +880,38 @@ function renderLoop() {
 
 	renderer.renderVisualisations();
 
+	let power = 0;
+
 	if (mouse.pressed) {
 		const trackLength = 200;
 		const x = mouse.clickPosition.x;
 		const y = mouse.clickPosition.y;
 		const factor = Math.min(Math.max(-1, (y - mouse.y) / trackLength), 1);
+		
+		const trainMaxSpeed = train?.controls?.max_speed ?? 100;
+		const trainPeakPoint = train?.controls?.peak_point ?? 100;
+		const trainAcceleration = train?.controls?.acceleration ?? 2.5;
+		const trainDeceleration = train?.controls?.deceleration ?? 3;
+
+		const minPower = train?.controls?.min_power ?? 0.1;
+		const maxPower = train?.controls?.max_power ?? 1;
+
+		let acceleration = 0;
 		if (factor > 0) {
-			speed += (train?.controls?.acceleration ?? 2.5) * factor / 1000 * delta;
+			acceleration = trainAcceleration
+			 * (1 - speed / trainMaxSpeed)
+			 * factor / 1000 * delta;
 		} else {
-			speed += (train?.controls?.deceleration ?? 3) * factor / 1000 * delta;
+			acceleration = trainDeceleration * factor / 1000 * delta;
 		}
+
+		if (controlMode.value == "Throttle") {
+			power = Math.max(minPower, Math.abs(factor
+			 * Math.min(1, speed / trainPeakPoint)
+			 * maxPower));
+		}
+
+		speed += acceleration;
 
 		ctx.fillStyle = ctx.strokeStyle = style.getPropertyValue("--white");
 		ctx.lineWidth = 3;
@@ -796,7 +927,9 @@ function renderLoop() {
 	}
 	speed = Math.max(0, speed);
 
-	trainManager.setTrainSpeed(speed);
+	if (controlMode.value != "Throttle") power = null;
+
+	trainManager.setTrainSpeed(speed, power);
 
 	const {
 		currentSpeed,
